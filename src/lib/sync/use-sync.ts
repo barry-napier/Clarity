@@ -13,10 +13,11 @@ export function useSync() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasHydrated = useRef(false);
+  const isSyncing = useRef(false);
 
   const sync = useCallback(async () => {
-    // Don't sync if already syncing
-    if (status === 'syncing') return;
+    // Don't sync if already syncing (use ref to avoid stale closure)
+    if (isSyncing.current) return;
 
     // Check if we're online
     if (!navigator.onLine) {
@@ -31,6 +32,7 @@ export function useSync() {
       return;
     }
 
+    isSyncing.current = true;
     setStatus('syncing');
     setError(null);
 
@@ -54,8 +56,10 @@ export function useSync() {
       console.error('Sync failed:', err);
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Sync failed');
+    } finally {
+      isSyncing.current = false;
     }
-  }, [status]);
+  }, []);
 
   useEffect(() => {
     // Sync on mount

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { LoginButton } from '@/components/login-button';
-import { isAuthenticated } from '@/lib/token-service';
+import { useAuth } from '@/lib/auth-context';
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -9,22 +9,15 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
-  // Check auth on client-side only
+  // Navigate to /today when authenticated
   useEffect(() => {
-    async function checkAuth() {
-      try {
-        const authed = await isAuthenticated();
-        if (authed) {
-          navigate({ to: '/today', replace: true });
-        }
-      } catch (error) {
-        // Not authenticated, stay on login
-        console.error('Auth check error:', error);
-      }
+    if (isAuthenticated) {
+      console.log('[LoginPage] Authenticated, navigating to /today');
+      navigate({ to: '/today', replace: true });
     }
-    checkAuth();
-  }, [navigate]);
+  }, [isAuthenticated, navigate]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">

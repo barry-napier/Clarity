@@ -1,8 +1,16 @@
 import { Capacitor } from '@capacitor/core';
 
 // Google OAuth configuration
-const GOOGLE_CLIENT_ID =
-  '718146632898-3tsbeksgrpt5p4k1faki4jea2kevva3r.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+// Client secret is required for web OAuth (not needed for native iOS)
+const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+
+if (!GOOGLE_CLIENT_ID) {
+  throw new Error(
+    'VITE_GOOGLE_CLIENT_ID environment variable is required. ' +
+      'Add it to your .env file.'
+  );
+}
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.appdata'];
 
@@ -73,16 +81,29 @@ export async function exchangeCodeForTokens(
   code: string,
   verifier: string
 ): Promise<TokenResponse> {
+  // Build token request params
+  const params: Record<string, string> = {
+    client_id: GOOGLE_CLIENT_ID,
+    code,
+    code_verifier: verifier,
+    grant_type: 'authorization_code',
+    redirect_uri: getRedirectUri(),
+  };
+
+  // Google requires client_secret for web apps (not for native iOS)
+  if (!Capacitor.isNativePlatform() && GOOGLE_CLIENT_SECRET) {
+    params.client_secret = GOOGLE_CLIENT_SECRET;
+  } else if (!Capacitor.isNativePlatform() && !GOOGLE_CLIENT_SECRET) {
+    throw new Error(
+      'client_secret is missing. Add VITE_GOOGLE_CLIENT_SECRET to your .env file. ' +
+        'Get it from Google Cloud Console > APIs & Services > Credentials.'
+    );
+  }
+
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID,
-      code,
-      code_verifier: verifier,
-      grant_type: 'authorization_code',
-      redirect_uri: getRedirectUri(),
-    }),
+    body: new URLSearchParams(params),
   });
 
   if (!response.ok) {

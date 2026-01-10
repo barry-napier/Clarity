@@ -51,11 +51,37 @@ export interface Framework extends Syncable {
   content: string;
 }
 
-export interface SyncQueueItem {
-  id?: number;
-  entityType: 'capture' | 'checkin' | 'chat' | 'memory' | 'northstar' | 'framework';
+// Entity types for sync queue
+export type SyncEntityType =
+  | 'capture'
+  | 'checkin'
+  | 'chat'
+  | 'memory'
+  | 'northstar'
+  | 'framework';
+
+export type SyncOperation = 'create' | 'update' | 'delete';
+
+// Type for creating a new sync queue item (ID not yet assigned)
+export interface NewSyncQueueItem {
+  entityType: SyncEntityType;
   entityId: string;
-  operation: 'create' | 'update' | 'delete';
+  operation: SyncOperation;
+  createdAt: number;
+  retryCount: number;
+}
+
+// Type for a persisted sync queue item (ID is always present after DB retrieval)
+export interface SyncQueueItem extends NewSyncQueueItem {
+  id: number;
+}
+
+// Legacy type for backward compatibility with Dexie (allows optional id for add())
+export interface SyncQueueItemRecord {
+  id?: number;
+  entityType: SyncEntityType;
+  entityId: string;
+  operation: SyncOperation;
   createdAt: number;
   retryCount: number;
 }
@@ -67,7 +93,7 @@ export class ClarityDB extends Dexie {
   memory!: EntityTable<Memory, 'id'>;
   northstar!: EntityTable<Northstar, 'id'>;
   frameworks!: EntityTable<Framework, 'id'>;
-  syncQueue!: EntityTable<SyncQueueItem, 'id'>;
+  syncQueue!: EntityTable<SyncQueueItemRecord, 'id'>;
 
   constructor() {
     super('ClarityDB');

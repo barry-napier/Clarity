@@ -1,7 +1,13 @@
-import { db, type SyncQueueItem, type Syncable } from '../db/schema';
+import {
+  db,
+  type SyncQueueItem,
+  type Syncable,
+  type SyncEntityType,
+} from '../db/schema';
 import { uploadToAppFolder, deleteFromDrive } from './drive';
 import { getValidAccessToken } from '../token-service';
 import { getQueuedItems, removeFromQueue, incrementRetry } from './queue';
+import type { EntityTable } from 'dexie';
 
 const MAX_RETRIES = 3;
 
@@ -21,18 +27,18 @@ export async function processSyncQueue(): Promise<{
   for (const item of items) {
     try {
       await processQueueItem(item, accessToken);
-      await removeFromQueue(item.id!);
+      await removeFromQueue(item.id);
       processed++;
     } catch (error) {
       console.error('Sync failed for item:', item, error);
 
       if (item.retryCount >= MAX_RETRIES) {
         console.error('Max retries exceeded, removing from queue:', item);
-        await removeFromQueue(item.id!);
+        await removeFromQueue(item.id);
         await markEntityError(item);
         failed++;
       } else {
-        await incrementRetry(item.id!);
+        await incrementRetry(item.id);
       }
     }
   }
@@ -81,20 +87,18 @@ async function markEntityError(item: SyncQueueItem): Promise<void> {
   }
 }
 
-type TableName = SyncQueueItem['entityType'];
+// Type-safe table accessor using Dexie's EntityTable type
+type SyncableTable = EntityTable<Syncable, 'id'>;
 
-function getTable(entityType: TableName) {
-  const tables = {
+function getTable(entityType: SyncEntityType): SyncableTable {
+  const tables: Record<SyncEntityType, SyncableTable> = {
     capture: db.captures,
     checkin: db.checkins,
     chat: db.chats,
     memory: db.memory,
     northstar: db.northstar,
     framework: db.frameworks,
-  } as const;
-
-  return tables[entityType] as unknown as {
-    get(id: string): Promise<Syncable | undefined>;
-    update(id: string, changes: Partial<Syncable>): Promise<number>;
   };
+
+  return tables[entityType];
 }

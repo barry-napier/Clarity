@@ -1,4 +1,4 @@
-import { Preferences } from '@capacitor/preferences';
+import { secureSet, secureGet, secureRemove } from './secure-storage';
 import { refreshAccessToken, type TokenResponse } from './google-auth';
 
 const KEYS = {
@@ -7,42 +7,47 @@ const KEYS = {
   TOKEN_EXPIRY: 'token_expiry',
 } as const;
 
+// Refresh tokens 5 minutes before expiry
+const REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
 export async function storeTokens(tokens: TokenResponse): Promise<void> {
   const expiry = Date.now() + tokens.expires_in * 1000;
 
   await Promise.all([
-    Preferences.set({ key: KEYS.ACCESS_TOKEN, value: tokens.access_token }),
-    Preferences.set({ key: KEYS.TOKEN_EXPIRY, value: String(expiry) }),
+    secureSet(KEYS.ACCESS_TOKEN, tokens.access_token),
+    secureSet(KEYS.TOKEN_EXPIRY, String(expiry)),
   ]);
 
   if (tokens.refresh_token) {
-    await Preferences.set({
-      key: KEYS.REFRESH_TOKEN,
-      value: tokens.refresh_token,
-    });
+    await secureSet(KEYS.REFRESH_TOKEN, tokens.refresh_token);
   }
 }
 
 export async function getValidAccessToken(): Promise<string | null> {
-  const { value: expiry } = await Preferences.get({ key: KEYS.TOKEN_EXPIRY });
+  const expiry = await secureGet(KEYS.TOKEN_EXPIRY);
 
   if (!expiry) {
     return null;
   }
 
-  // Refresh if less than 5 minutes remaining
-  if (parseInt(expiry) - Date.now() < 300000) {
+  // Check for corrupted expiry timestamp
+  const expiryMs = parseInt(expiry, 10);
+  if (Number.isNaN(expiryMs)) {
+    console.error('Corrupted token expiry timestamp, forcing refresh');
     return await doTokenRefresh();
   }
 
-  const { value } = await Preferences.get({ key: KEYS.ACCESS_TOKEN });
-  return value;
+  // Refresh if less than 5 minutes remaining
+  if (expiryMs - Date.now() < REFRESH_BUFFER_MS) {
+    return await doTokenRefresh();
+  }
+
+  const token = await secureGet(KEYS.ACCESS_TOKEN);
+  return token;
 }
 
 async function doTokenRefresh(): Promise<string | null> {
-  const { value: refreshToken } = await Preferences.get({
-    key: KEYS.REFRESH_TOKEN,
-  });
+  const refreshToken = await secureGet(KEYS.REFRESH_TOKEN);
 
   if (!refreshToken) {
     return null;
@@ -60,9 +65,9 @@ async function doTokenRefresh(): Promise<string | null> {
 
 export async function clearTokens(): Promise<void> {
   await Promise.all([
-    Preferences.remove({ key: KEYS.ACCESS_TOKEN }),
-    Preferences.remove({ key: KEYS.REFRESH_TOKEN }),
-    Preferences.remove({ key: KEYS.TOKEN_EXPIRY }),
+    secureRemove(KEYS.ACCESS_TOKEN),
+    secureRemove(KEYS.REFRESH_TOKEN),
+    secureRemove(KEYS.TOKEN_EXPIRY),
   ]);
 }
 

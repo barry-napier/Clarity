@@ -11,7 +11,11 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     tsConfigPaths(),
-    tanstackStart(),
+    tanstackStart({
+      spa: {
+        enabled: true,
+      },
+    }),
     // IMPORTANT: React plugin MUST come AFTER TanStack Start plugin
     viteReact(),
   ],

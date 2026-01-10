@@ -24,9 +24,13 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Capacitor (for future)
+# Capacitor
 ios/App/Pods/
+ios/App/App/capacitor.config.json
 android/.gradle/
+
+# Playwright
+.playwright-mcp/
 
 # TypeScript
 *.tsbuildinfo

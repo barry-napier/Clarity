@@ -1,9 +1,14 @@
-import { db, type SyncQueueItem } from '../db/schema';
+import {
+  db,
+  type SyncQueueItem,
+  type SyncEntityType,
+  type SyncOperation,
+} from '../db/schema';
 
 export async function enqueueSync(
-  entityType: SyncQueueItem['entityType'],
+  entityType: SyncEntityType,
   entityId: string,
-  operation: SyncQueueItem['operation']
+  operation: SyncOperation
 ): Promise<void> {
   // Check if there's already a pending operation for this entity
   const existing = await db.syncQueue
@@ -11,10 +16,10 @@ export async function enqueueSync(
     .equals(entityId)
     .first();
 
-  if (existing) {
+  if (existing && existing.id !== undefined) {
     // If we're deleting, update the operation to delete
     if (operation === 'delete') {
-      await db.syncQueue.update(existing.id!, { operation: 'delete' });
+      await db.syncQueue.update(existing.id, { operation: 'delete' });
     }
     // Otherwise, keep the existing operation (create stays create, update stays update)
     return;
@@ -30,7 +35,9 @@ export async function enqueueSync(
 }
 
 export async function getQueuedItems(): Promise<SyncQueueItem[]> {
-  return db.syncQueue.orderBy('createdAt').toArray();
+  const items = await db.syncQueue.orderBy('createdAt').toArray();
+  // Filter to only items with valid IDs (should always be the case after DB retrieval)
+  return items.filter((item): item is SyncQueueItem => item.id !== undefined);
 }
 
 export async function removeFromQueue(id: number): Promise<void> {

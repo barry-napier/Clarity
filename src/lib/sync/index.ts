@@ -8,3 +8,4 @@ export {
 export type { DriveFile } from './drive';
 export { processSyncQueue } from './processor';
 export { useSync } from './use-sync';
+export type { SyncStatus } from './use-sync';

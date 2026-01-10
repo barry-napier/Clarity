@@ -1,7 +1,18 @@
+// Google Drive API Response Types
 export interface DriveFile {
   id: string;
   name: string;
   modifiedTime: string;
+}
+
+interface DriveListResponse {
+  files?: DriveFile[];
+  nextPageToken?: string;
+}
+
+interface DriveCreateResponse {
+  id: string;
+  name: string;
 }
 
 export async function listAppDataFiles(
@@ -20,8 +31,8 @@ export async function listAppDataFiles(
     throw new Error(`Failed to list files: ${response.status}`);
   }
 
-  const data = await response.json();
-  return data.files || [];
+  const data = (await response.json()) as DriveListResponse;
+  return data.files ?? [];
 }
 
 export async function uploadToAppFolder(
@@ -83,7 +94,7 @@ export async function uploadToAppFolder(
     throw new Error(`Failed to create file: ${response.status}`);
   }
 
-  const result = await response.json();
+  const result = (await response.json()) as DriveCreateResponse;
   return result.id;
 }
 
@@ -100,7 +111,7 @@ export async function downloadFromDrive<T>(
     throw new Error(`Failed to download file: ${response.status}`);
   }
 
-  return response.json();
+  return response.json() as Promise<T>;
 }
 
 export async function deleteFromDrive(

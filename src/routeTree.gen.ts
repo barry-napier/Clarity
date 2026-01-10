@@ -16,6 +16,7 @@ import { Route as OauthCallbackRouteImport } from './routes/oauth/callback'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as AppReflectRouteImport } from './routes/_app/reflect'
 import { Route as AppPlanRouteImport } from './routes/_app/plan'
+import { Route as AppChatRouteImport } from './routes/_app/chat'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -51,10 +52,16 @@ const AppPlanRoute = AppPlanRouteImport.update({
   path: '/plan',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChatRoute = AppChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/chat': typeof AppChatRoute
   '/plan': typeof AppPlanRoute
   '/reflect': typeof AppReflectRoute
   '/today': typeof AppTodayRoute
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/chat': typeof AppChatRoute
   '/plan': typeof AppPlanRoute
   '/reflect': typeof AppReflectRoute
   '/today': typeof AppTodayRoute
@@ -73,6 +81,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/chat': typeof AppChatRoute
   '/_app/plan': typeof AppPlanRoute
   '/_app/reflect': typeof AppReflectRoute
   '/_app/today': typeof AppTodayRoute
@@ -83,17 +92,26 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/chat'
     | '/plan'
     | '/reflect'
     | '/today'
     | '/oauth/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/plan' | '/reflect' | '/today' | '/oauth/callback'
+  to:
+    | '/'
+    | '/login'
+    | '/chat'
+    | '/plan'
+    | '/reflect'
+    | '/today'
+    | '/oauth/callback'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/chat'
     | '/_app/plan'
     | '/_app/reflect'
     | '/_app/today'
@@ -158,16 +176,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPlanRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/chat': {
+      id: '/_app/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AppChatRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppChatRoute: typeof AppChatRoute
   AppPlanRoute: typeof AppPlanRoute
   AppReflectRoute: typeof AppReflectRoute
   AppTodayRoute: typeof AppTodayRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppChatRoute: AppChatRoute,
   AppPlanRoute: AppPlanRoute,
   AppReflectRoute: AppReflectRoute,
   AppTodayRoute: AppTodayRoute,

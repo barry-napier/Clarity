@@ -24,6 +24,26 @@ export function useChat(date: string) {
   );
 }
 
+export function useChatById(id: string | undefined) {
+  return useLiveQuery(
+    () => (id ? db.chats.get(id) : undefined),
+    [id]
+  );
+}
+
+export function useChatHistory(limit = 50) {
+  return useLiveQuery(
+    () => db.chats.orderBy('updatedAt').reverse().limit(limit).toArray(),
+    [limit]
+  );
+}
+
+export function useLatestChat() {
+  return useLiveQuery(
+    () => db.chats.orderBy('updatedAt').reverse().first()
+  );
+}
+
 export function useMemory() {
   return useLiveQuery(() => db.memory.get('main'));
 }

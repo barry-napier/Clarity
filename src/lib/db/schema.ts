@@ -26,7 +26,8 @@ export interface Checkin extends Syncable {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant';
+  id: string;
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
 }
@@ -34,11 +35,15 @@ export interface ChatMessage {
 export interface Chat extends Syncable {
   date: string;
   messages: ChatMessage[];
+  memorySnapshot?: string; // Memory state at session start
 }
 
 export interface Memory extends Syncable {
   key: 'main';
   content: string;
+  version?: number; // Increment on each update
+  tokenEstimate?: number; // Approximate token count
+  lastCompaction?: number; // Last summarization timestamp
 }
 
 export interface Northstar extends Syncable {

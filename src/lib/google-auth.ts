@@ -1,22 +1,31 @@
 import { Capacitor } from '@capacitor/core';
 
 // Google OAuth configuration
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_WEB_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_IOS_CLIENT_ID = import.meta.env.VITE_GOOGLE_IOS_CLIENT_ID;
 // Client secret is required for web OAuth (not needed for native iOS)
 const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
 
-if (!GOOGLE_CLIENT_ID) {
-  throw new Error(
-    'VITE_GOOGLE_CLIENT_ID environment variable is required. ' +
-      'Add it to your .env file.'
-  );
+// Use iOS client ID on native, web client ID on web
+function getClientId(): string {
+  if (Capacitor.isNativePlatform() && GOOGLE_IOS_CLIENT_ID) {
+    return GOOGLE_IOS_CLIENT_ID;
+  }
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    throw new Error(
+      'VITE_GOOGLE_CLIENT_ID environment variable is required. ' +
+        'Add it to your .env file.'
+    );
+  }
+  return GOOGLE_WEB_CLIENT_ID;
 }
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.appdata'];
 
 function getRedirectUri(): string {
-  if (Capacitor.isNativePlatform()) {
-    return 'clarity://oauth/callback';
+  if (Capacitor.isNativePlatform() && GOOGLE_IOS_CLIENT_ID) {
+    // iOS uses reversed client ID as URL scheme
+    return `com.googleusercontent.apps.${GOOGLE_IOS_CLIENT_ID.split('.')[0]}:/oauth2redirect`;
   }
   // Web: use current origin for local dev or production
   return `${window.location.origin}/oauth/callback`;
@@ -56,7 +65,7 @@ export function generateState(): string {
 
 export function buildAuthUrl(state: string, codeChallenge: string): string {
   const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
+    client_id: getClientId(),
     redirect_uri: getRedirectUri(),
     response_type: 'code',
     scope: SCOPES.join(' '),
@@ -83,7 +92,7 @@ export async function exchangeCodeForTokens(
 ): Promise<TokenResponse> {
   // Build token request params
   const params: Record<string, string> = {
-    client_id: GOOGLE_CLIENT_ID,
+    client_id: getClientId(),
     code,
     code_verifier: verifier,
     grant_type: 'authorization_code',
@@ -121,7 +130,7 @@ export async function refreshAccessToken(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID,
+      client_id: getClientId(),
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
     }),

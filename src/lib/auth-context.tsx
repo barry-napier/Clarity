@@ -52,6 +52,16 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper to add timeout to promises
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [authenticated, setAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,17 +69,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check authentication status on mount
   useEffect(() => {
+    let didTimeout = false;
+
+    // Hard fallback - if nothing happens in 3 seconds, force loading to false
+    const fallbackTimer = setTimeout(() => {
+      console.log('[AuthProvider] Fallback timeout triggered');
+      didTimeout = true;
+      setAuthenticated(false);
+      setIsLoading(false);
+    }, 3000);
+
     async function checkAuth() {
+      console.log('[AuthProvider] Checking auth status...');
       try {
-        const authed = await isAuthenticated();
-        setAuthenticated(authed);
+        const authed = await withTimeout(isAuthenticated(), 2000);
+        if (!didTimeout) {
+          console.log('[AuthProvider] Auth result:', authed);
+          setAuthenticated(authed);
+        }
       } catch (err) {
-        console.error('Failed to check auth status:', err);
+        if (!didTimeout) {
+          console.error('[AuthProvider] Failed to check auth status:', err);
+          setAuthenticated(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (!didTimeout) {
+          clearTimeout(fallbackTimer);
+          setIsLoading(false);
+        }
       }
     }
     checkAuth();
+
+    return () => clearTimeout(fallbackTimer);
   }, []);
 
   // Initialize deep link listener for OAuth callback (native only)

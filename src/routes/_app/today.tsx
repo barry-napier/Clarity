@@ -3,6 +3,8 @@ import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SyncStatus } from '@/components/sync-status';
+import { CaptureInput } from '@/components/capture-input';
+import { CaptureList } from '@/components/capture-list';
 
 export const Route = createFileRoute('/_app/today')({
   component: TodayPage,
@@ -38,13 +40,10 @@ function TodayPage() {
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-3">
           Inbox
         </h2>
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">
-              Capture thoughts, tasks, and ideas here
-            </p>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <CaptureInput />
+          <CaptureList />
+        </div>
       </section>
 
       {/* Daily Check-in */}

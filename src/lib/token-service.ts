@@ -30,8 +30,15 @@ export async function getValidAccessToken(): Promise<string | null> {
     return null;
   }
 
+  // Check for corrupted expiry timestamp
+  const expiryMs = parseInt(expiry, 10);
+  if (Number.isNaN(expiryMs)) {
+    console.error('Corrupted token expiry timestamp, forcing refresh');
+    return await doTokenRefresh();
+  }
+
   // Refresh if less than 5 minutes remaining
-  if (parseInt(expiry, 10) - Date.now() < REFRESH_BUFFER_MS) {
+  if (expiryMs - Date.now() < REFRESH_BUFFER_MS) {
     return await doTokenRefresh();
   }
 

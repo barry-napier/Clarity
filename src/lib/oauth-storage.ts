@@ -29,25 +29,28 @@ export async function validateOAuthState(
   const storedState = await secureGet(KEYS.OAUTH_STATE);
   const createdAt = await secureGet(KEYS.OAUTH_STATE_CREATED);
 
+  // Always clear state after any validation attempt (single-use tokens)
+  await clearOAuthState();
+
   if (!storedState || !createdAt) {
     return false;
   }
 
+  // Check for corrupted timestamp
+  const createdAtMs = parseInt(createdAt, 10);
+  if (Number.isNaN(createdAtMs)) {
+    console.error('Corrupted OAuth state timestamp');
+    return false;
+  }
+
   // Check expiration
-  const age = Date.now() - parseInt(createdAt, 10);
+  const age = Date.now() - createdAtMs;
   if (age > OAUTH_TIMEOUT_MS) {
-    await clearOAuthState();
     return false;
   }
 
   // Validate state matches
-  if (storedState !== returnedState) {
-    return false;
-  }
-
-  // Clear state after successful validation (prevent replay attacks)
-  await clearOAuthState();
-  return true;
+  return storedState === returnedState;
 }
 
 export async function clearOAuthState(): Promise<void> {
@@ -68,14 +71,23 @@ export async function retrievePKCEVerifier(): Promise<string | null> {
   const verifier = await secureGet(KEYS.PKCE_VERIFIER);
   const createdAt = await secureGet(KEYS.PKCE_CREATED);
 
+  // Clear after retrieval (single-use)
+  await clearPKCEVerifier();
+
   if (!verifier || !createdAt) {
     return null;
   }
 
+  // Check for corrupted timestamp
+  const createdAtMs = parseInt(createdAt, 10);
+  if (Number.isNaN(createdAtMs)) {
+    console.error('Corrupted PKCE verifier timestamp');
+    return null;
+  }
+
   // Check expiration
-  const age = Date.now() - parseInt(createdAt, 10);
+  const age = Date.now() - createdAtMs;
   if (age > OAUTH_TIMEOUT_MS) {
-    await clearPKCEVerifier();
     return null;
   }
 

@@ -1,8 +1,18 @@
+import { Capacitor } from '@capacitor/core';
+
 // Google OAuth configuration
-// Replace YOUR_CLIENT_ID with your actual Google Cloud OAuth client ID
-const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
-const REDIRECT_URI = 'clarity://oauth/callback';
+const GOOGLE_CLIENT_ID =
+  '718146632898-3tsbeksgrpt5p4k1faki4jea2kevva3r.apps.googleusercontent.com';
+
 const SCOPES = ['https://www.googleapis.com/auth/drive.appdata'];
+
+function getRedirectUri(): string {
+  if (Capacitor.isNativePlatform()) {
+    return 'clarity://oauth/callback';
+  }
+  // Web: use current origin for local dev or production
+  return `${window.location.origin}/oauth/callback`;
+}
 
 function base64UrlEncode(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -39,7 +49,7 @@ export function generateState(): string {
 export function buildAuthUrl(state: string, codeChallenge: string): string {
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     response_type: 'code',
     scope: SCOPES.join(' '),
     state,
@@ -71,7 +81,7 @@ export async function exchangeCodeForTokens(
       code,
       code_verifier: verifier,
       grant_type: 'authorization_code',
-      redirect_uri: REDIRECT_URI,
+      redirect_uri: getRedirectUri(),
     }),
   });
 

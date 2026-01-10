@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Product Philosophy
+
+Clarity is a "personal operating system for intentional living" - a calm, intelligent companion that's therapist-adjacent in tone. Key principles:
+
+- **No cheerleading, no fluff** - Anti-toxic-positivity, honest questions that make you think
+- **Signal vs noise** - Focus on what matters, not productivity theater
+- **Privacy-first** - Users own their data (stored in their Google Drive)
+
+See `docs/spec.md` for full product specification.
+
 ## Build & Development Commands
 
 ```bash
@@ -46,12 +56,32 @@ Clarity is a privacy-first personal productivity app built as a hybrid web/iOS a
 ### Database Entities
 
 All entities implement `Syncable` interface with `syncStatus`, `driveFileId`, timestamps:
-- `Capture` - Quick inbox items
-- `Checkin` - Daily check-in entries
-- `Chat` - AI conversation history
-- `Memory` - AI-maintained user patterns
-- `Northstar` - Personal manifesto
-- `Framework` - Thinking exercises
+- `Capture` - Quick inbox items (New/Done tabs)
+- `Checkin` - Daily check-in entries (energy, wins, friction, single priority)
+- `Chat` - AI conversation history (24+ hour gap = new session)
+- `Memory` - AI-maintained markdown doc with life domains, patterns, people
+- `Northstar` - Personal manifesto (living document)
+- `Framework` - Thinking exercises (Annual Review, Regret Minimization, etc.)
+
+### Life Domains
+
+The system tracks six core areas: Work/Career, Relationships, Health, Meaning/Fun, Finances, Family. Memory also includes: Current Season, Operating Rhythm, People I'm Tracking, Cross-Domain Tensions, Rules I Trust, AI Instructions, Now/Next/Later.
+
+### AI Integration
+
+- **Vercel AI Gateway** - Model-agnostic abstraction
+- **Chat model**: Fast/cheap (GPT-4o-mini, Claude Haiku)
+- **Memory model**: Quality (GPT-4o, Claude Sonnet)
+- **Every interaction extracts learnings** to update memory immediately
+- Memory auto-compresses to stay within context limits
+
+### AI Tone Guidelines
+
+When building AI features, the tone should be:
+- Warm but direct, never effusive or sycophantic
+- Ask questions that make users think, not obvious questions
+- Acknowledge difficulty without toxic positivity ("That sounds hard" not "You've got this!")
+- Probe gently once on terse answers, then accept and move on
 
 ### Environment Variables
 
@@ -63,6 +93,15 @@ Copy `.env.example` to `.env`:
 ### Path Aliases
 
 `@/*` maps to `./src/*` (configured in tsconfig.json)
+
+## Design System
+
+- **Dark mode default** - `html.dark` class applied in root
+- **Font**: Inter (loaded from Google Fonts)
+- **Colors**: Near-black background (`hsl(0 0% 4%)`), amber/gold accent (`hsl(35 90% 55%)`)
+- **Touch targets**: 44px minimum for iOS
+- **Container**: max-width ~720px, generous vertical padding
+- **Components**: shadcn/ui with Tailwind CSS v4
 
 ## Task Tracking
 

@@ -28,7 +28,9 @@ export async function listAppDataFiles(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to list files: ${response.status}`);
+    const errorBody = await response.text();
+    console.error('[Drive] List files failed:', response.status, errorBody);
+    throw new Error(`Failed to list files: ${response.status} - ${errorBody}`);
   }
 
   const data = (await response.json()) as DriveListResponse;

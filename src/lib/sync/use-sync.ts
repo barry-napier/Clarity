@@ -1,5 +1,6 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { processSyncQueue } from './processor';
+import { hydrateFromDrive } from './hydrate';
 import { isAuthenticated } from '../token-service';
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
@@ -11,6 +12,7 @@ export function useSync() {
     failed: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasHydrated = useRef(false);
 
   const sync = useCallback(async () => {
     // Don't sync if already syncing
@@ -33,6 +35,12 @@ export function useSync() {
     setError(null);
 
     try {
+      // Hydrate from Drive on first sync (new device or fresh install)
+      if (!hasHydrated.current) {
+        hasHydrated.current = true;
+        await hydrateFromDrive();
+      }
+
       const result = await processSyncQueue();
       setLastSyncResult(result);
 

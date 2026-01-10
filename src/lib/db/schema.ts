@@ -11,6 +11,7 @@ export interface Syncable {
 export interface Capture extends Syncable {
   content: string;
   date: string; // YYYY-MM-DD
+  status: 'new' | 'done';
 }
 
 export interface CheckinEntry {
@@ -98,8 +99,8 @@ export class ClarityDB extends Dexie {
   constructor() {
     super('ClarityDB');
 
-    this.version(1).stores({
-      captures: 'id, date, syncStatus, updatedAt',
+    this.version(2).stores({
+      captures: 'id, date, status, syncStatus, updatedAt',
       checkins: 'id, date, syncStatus, updatedAt',
       chats: 'id, date, syncStatus, updatedAt',
       memory: 'id, syncStatus, updatedAt',

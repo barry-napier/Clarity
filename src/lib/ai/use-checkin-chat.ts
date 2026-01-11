@@ -131,6 +131,16 @@ export function useCheckinChat({
     buildPrompt();
   }, [memoryContext]);
 
+  // Cleanup RAF on unmount to prevent memory leaks (#062)
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, []);
+
   // Start the check-in by asking the first question
   const startCheckin = useCallback(async () => {
     if (!isAIConfigured()) {
@@ -189,9 +199,28 @@ export function useCheckinChat({
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Record the entry for the current stage (only for stages that have entries)
-      // Get entry type for both recording and AI instruction
+      // Determine next stage FIRST to validate before persisting data (#061)
+      const nextStage = NEXT_STAGE[stage];
+
+      // Get entry type for current stage
       const entryType = isStageWithEntry(stage) ? STAGE_TO_TYPE[stage] : null;
+
+      // If not completing, validate nextQuestion exists BEFORE persisting entry (#061)
+      // This prevents data loss if we can't proceed to the next question
+      let nextQuestion: string | undefined;
+      if (nextStage !== 'complete') {
+        nextQuestion = stageQuestionsRef.current[nextStage as StageWithEntry];
+        if (!nextQuestion) {
+          // Configuration error - don't persist partial data
+          console.error(`No question defined for stage: ${nextStage}`);
+          setError(new Error('Check-in configuration error. Please try again.'));
+          hapticError();
+          setMessages(messages); // Revert to previous messages
+          return;
+        }
+      }
+
+      // Now safe to record entry - we've validated we can proceed
       if (entryType) {
         const entry: CheckinEntry = {
           type: entryType,
@@ -201,9 +230,6 @@ export function useCheckinChat({
         };
         await addCheckinEntry(checkinId, entry);
       }
-
-      // Determine next stage
-      const nextStage = NEXT_STAGE[stage];
 
       // If check-in is complete, finish up
       if (nextStage === 'complete') {
@@ -247,15 +273,9 @@ export function useCheckinChat({
           content: m.content,
         }));
 
-        // Add instruction for next question - nextStage is guaranteed to be a StageWithEntry
-        // because we've already returned early if nextStage === 'complete'
-        const nextQuestion = stageQuestionsRef.current[nextStage as StageWithEntry];
-        if (!nextQuestion) {
-          // This shouldn't happen in normal flow - log and bail out gracefully
-          console.error(`No question defined for stage: ${nextStage}`);
-          return;
-        }
-        const instruction = `The user just answered the ${entryType} question. Acknowledge briefly (1-2 sentences), then ask: "${nextQuestion}"`;
+        // nextQuestion was already validated before persisting entry (#061)
+        // TypeScript needs the assertion since nextQuestion could technically be undefined
+        const instruction = `The user just answered the ${entryType} question. Acknowledge briefly (1-2 sentences), then ask: "${nextQuestion!}"`;
 
         // Stream the response
         const result = streamText({
@@ -304,12 +324,19 @@ export function useCheckinChat({
         setMessages(finalMessages);
 
         // Update stage and persist messages
-        currentQuestionRef.current = nextQuestion;
+        // nextQuestion is guaranteed defined here - validated before entry persistence (#061)
+        currentQuestionRef.current = nextQuestion!;
         setStage(nextStage);
         await updateCheckinStage(checkinId, nextStage);
         await updateCheckinMessages(checkinId, finalMessages);
         hapticMessageReceived();
       } catch (err) {
+        // Cancel any pending RAF on error/abort (#062)
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
+
         if (err instanceof Error && err.name === 'AbortError') {
           return;
         }

@@ -1,5 +1,5 @@
 ---
-status: pending
+status: completed
 priority: p1
 issue_id: "039"
 tags: [code-review, simplicity, phase-4-checkins, dead-code]

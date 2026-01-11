@@ -2,8 +2,8 @@ import { LocalNotifications, type ScheduleOptions, type PendingResult } from '@c
 import { Capacitor } from '@capacitor/core';
 import { getReminderSettings, type ReminderSettings } from './reminder-settings';
 
-const MORNING_NOTIFICATION_ID = 1001;
-const EVENING_NOTIFICATION_ID = 1002;
+export const MORNING_NOTIFICATION_ID = 1001;
+export const EVENING_NOTIFICATION_ID = 1002;
 
 /**
  * Check if notifications are available (native platform)

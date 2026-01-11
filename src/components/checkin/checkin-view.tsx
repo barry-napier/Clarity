@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { Link } from '@tanstack/react-router';
 import { useCheckinChat } from '@/lib/ai/use-checkin-chat';
 import { useMemory } from '@/lib/db/hooks';
 import { useKeyboard } from '@/lib/use-keyboard';
@@ -11,6 +12,7 @@ import type { Checkin } from '@/lib/db/schema';
 import { extractAndUpdateMemory } from '@/lib/ai/memory-extractor';
 import { incrementCompletedCheckinsCount } from '@/lib/notifications/reminder-settings';
 import type { ChatMessage as ChatMessageType } from '@/lib/db/schema';
+import { Button } from '../ui/button';
 
 interface CheckinViewProps {
   checkin: Checkin;
@@ -24,6 +26,19 @@ export function CheckinView({ checkin, onComplete }: CheckinViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const hasStartedRef = useRef(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Track online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Will be set after useCheckinChat is called
   const messagesRef = useRef<Array<{ id: string; role: string; content: string }>>([]);
@@ -126,6 +141,20 @@ export function CheckinView({ checkin, onComplete }: CheckinViewProps) {
 
   const progress = getProgress();
 
+  // Show offline message if no network connection
+  if (!isOnline) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+        <p className="text-muted-foreground mb-4">
+          Check-ins require an internet connection.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/today">Back to Today</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -183,15 +212,12 @@ export function CheckinView({ checkin, onComplete }: CheckinViewProps) {
 
         {error && (
           <div className="flex justify-center p-4">
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 max-w-sm text-center">
-              <p className="text-sm text-destructive mb-2">{error.message}</p>
-              <button
-                onClick={retry}
-                className="text-sm text-accent underline hover:no-underline"
-              >
-                Tap to retry
-              </button>
-            </div>
+            <button
+              onClick={retry}
+              className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 max-w-sm text-center"
+            >
+              <p className="text-sm text-destructive">Something went wrong. Tap to retry.</p>
+            </button>
           </div>
         )}
 

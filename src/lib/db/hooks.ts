@@ -17,6 +17,36 @@ export function useCheckin(date: string) {
   );
 }
 
+/**
+ * Get today's check-in with live updates
+ * Returns undefined while loading, null if none exists
+ */
+export function useTodayCheckin() {
+  const today = new Date().toISOString().split('T')[0];
+  return useLiveQuery(
+    () => db.checkins.where('date').equals(today).first(),
+    []
+  );
+}
+
+/**
+ * Get recent check-ins (past 7 days) with live updates
+ */
+export function useRecentCheckins(limit = 7) {
+  return useLiveQuery(() => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoDate = weekAgo.toISOString().split('T')[0];
+
+    return db.checkins
+      .where('date')
+      .aboveOrEqual(weekAgoDate)
+      .reverse()
+      .limit(limit)
+      .toArray();
+  }, [limit]);
+}
+
 export function useChat(date: string) {
   return useLiveQuery(
     () => db.chats.where('date').equals(date).first(),

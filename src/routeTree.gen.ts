@@ -14,9 +14,11 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OauthCallbackRouteImport } from './routes/oauth/callback'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppReflectRouteImport } from './routes/_app/reflect'
 import { Route as AppPlanRouteImport } from './routes/_app/plan'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
+import { Route as AppTodayCheckinRouteImport } from './routes/_app/today/checkin'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -42,6 +44,11 @@ const AppTodayRoute = AppTodayRouteImport.update({
   path: '/today',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReflectRoute = AppReflectRouteImport.update({
   id: '/reflect',
   path: '/reflect',
@@ -57,6 +64,11 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTodayCheckinRoute = AppTodayCheckinRouteImport.update({
+  id: '/checkin',
+  path: '/checkin',
+  getParentRoute: () => AppTodayRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -64,8 +76,10 @@ export interface FileRoutesByFullPath {
   '/chat': typeof AppChatRoute
   '/plan': typeof AppPlanRoute
   '/reflect': typeof AppReflectRoute
-  '/today': typeof AppTodayRoute
+  '/settings': typeof AppSettingsRoute
+  '/today': typeof AppTodayRouteWithChildren
   '/oauth/callback': typeof OauthCallbackRoute
+  '/today/checkin': typeof AppTodayCheckinRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -73,8 +87,10 @@ export interface FileRoutesByTo {
   '/chat': typeof AppChatRoute
   '/plan': typeof AppPlanRoute
   '/reflect': typeof AppReflectRoute
-  '/today': typeof AppTodayRoute
+  '/settings': typeof AppSettingsRoute
+  '/today': typeof AppTodayRouteWithChildren
   '/oauth/callback': typeof OauthCallbackRoute
+  '/today/checkin': typeof AppTodayCheckinRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -84,8 +100,10 @@ export interface FileRoutesById {
   '/_app/chat': typeof AppChatRoute
   '/_app/plan': typeof AppPlanRoute
   '/_app/reflect': typeof AppReflectRoute
-  '/_app/today': typeof AppTodayRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/today': typeof AppTodayRouteWithChildren
   '/oauth/callback': typeof OauthCallbackRoute
+  '/_app/today/checkin': typeof AppTodayCheckinRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -95,8 +113,10 @@ export interface FileRouteTypes {
     | '/chat'
     | '/plan'
     | '/reflect'
+    | '/settings'
     | '/today'
     | '/oauth/callback'
+    | '/today/checkin'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -104,8 +124,10 @@ export interface FileRouteTypes {
     | '/chat'
     | '/plan'
     | '/reflect'
+    | '/settings'
     | '/today'
     | '/oauth/callback'
+    | '/today/checkin'
   id:
     | '__root__'
     | '/'
@@ -114,8 +136,10 @@ export interface FileRouteTypes {
     | '/_app/chat'
     | '/_app/plan'
     | '/_app/reflect'
+    | '/_app/settings'
     | '/_app/today'
     | '/oauth/callback'
+    | '/_app/today/checkin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -162,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTodayRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/reflect': {
       id: '/_app/reflect'
       path: '/reflect'
@@ -183,21 +214,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/today/checkin': {
+      id: '/_app/today/checkin'
+      path: '/checkin'
+      fullPath: '/today/checkin'
+      preLoaderRoute: typeof AppTodayCheckinRouteImport
+      parentRoute: typeof AppTodayRoute
+    }
   }
 }
+
+interface AppTodayRouteChildren {
+  AppTodayCheckinRoute: typeof AppTodayCheckinRoute
+}
+
+const AppTodayRouteChildren: AppTodayRouteChildren = {
+  AppTodayCheckinRoute: AppTodayCheckinRoute,
+}
+
+const AppTodayRouteWithChildren = AppTodayRoute._addFileChildren(
+  AppTodayRouteChildren,
+)
 
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppPlanRoute: typeof AppPlanRoute
   AppReflectRoute: typeof AppReflectRoute
-  AppTodayRoute: typeof AppTodayRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppTodayRoute: typeof AppTodayRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppPlanRoute: AppPlanRoute,
   AppReflectRoute: AppReflectRoute,
-  AppTodayRoute: AppTodayRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppTodayRoute: AppTodayRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

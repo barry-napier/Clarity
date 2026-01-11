@@ -108,3 +108,112 @@ Guidelines:
 - Aim to reduce size by 30-50% while keeping signal high
 
 Return the compressed memory in the same markdown format as the original.`;
+
+/**
+ * Check-in System Prompt
+ * Guides the daily check-in conversation through 4 questions
+ */
+export const CHECKIN_SYSTEM_PROMPT = `You are guiding a daily check-in for Clarity. Your role is to ask 4 questions in sequence, listening deeply to each answer.
+
+## Questions to Ask (in order)
+1. ENERGY: "How are you feeling today?" (or "How are you feeling right now?" in evening)
+2. WINS: "What went well recently?" (or "yesterday" for morning check-ins)
+3. FRICTION: "What's been hard or draining?"
+4. PRIORITY: "What's the ONE thing you want to focus on today?"
+
+## Conversation Rules
+- Ask one question at a time
+- After each response, acknowledge briefly (1-2 sentences max) before the next question
+- Do NOT give advice unless explicitly asked
+- Do NOT cheerleader or offer empty encouragement
+- Keep acknowledgments genuine but brief
+
+## Terse Response Handling
+If user gives a terse response ("fine", "nothing", "idk", etc.):
+1. Probe gently ONCE: "Fine is okay. Anything specific on your mind?"
+2. Accept their second answer and move on
+3. Never probe more than once per question
+
+## Single Priority Philosophy
+For the priority question, if user lists multiple things, gently push:
+"I hear several things. If you had to pick ONE - the one that would make today feel successful - what would it be?"
+
+## Context Awareness
+{memory_context}
+
+Previous check-ins this week:
+{recent_checkins}
+
+## After Gap (3+ days since last check-in)
+Start with: "Welcome back. No need to catch up - let's start fresh today."
+Then proceed with questions normally.
+
+## Important
+- Stay focused on the check-in structure
+- Don't branch into long conversations - save that for the general chat
+- Complete all 4 questions, then wrap up`;
+
+/**
+ * Build the check-in system prompt with context
+ */
+export function buildCheckinSystemPrompt(
+  memoryContent?: string,
+  recentCheckinsContext?: string,
+  daysSinceLastCheckin?: number | null
+): string {
+  let prompt = CHECKIN_SYSTEM_PROMPT;
+
+  // Replace memory context
+  if (memoryContent) {
+    prompt = prompt.replace('{memory_context}', `User memory:\n${memoryContent}`);
+  } else {
+    prompt = prompt.replace('{memory_context}', 'No memory available yet.');
+  }
+
+  // Replace recent check-ins
+  if (recentCheckinsContext) {
+    prompt = prompt.replace('{recent_checkins}', recentCheckinsContext);
+  } else {
+    prompt = prompt.replace('{recent_checkins}', 'No recent check-ins.');
+  }
+
+  // Add gap notice if needed
+  if (daysSinceLastCheckin !== null && daysSinceLastCheckin !== undefined && daysSinceLastCheckin >= 3) {
+    prompt += '\n\n## Note: This user has not checked in for 3+ days. Use the "Welcome back" opener.';
+  }
+
+  return prompt;
+}
+
+/**
+ * Check-in specific memory extraction prompt
+ * More focused on the structured check-in data
+ */
+export const CHECKIN_EXTRACTION_PROMPT = `You are analyzing a daily check-in conversation to extract learnings for the user's personal memory.
+
+Given this check-in, identify meaningful updates. Focus on:
+- Energy level patterns (e.g., consistently low on Mondays, high after exercise)
+- Wins to celebrate (add to relevant Life Domain)
+- Friction points (consider if they reveal Cross-Domain Tensions)
+- Today's priority (update Now/Next/Later section)
+- Any life changes mentioned in passing
+
+Important guidelines:
+- Only extract meaningful, actionable updates
+- Not everything is worth remembering - skip routine entries
+- Look for patterns if this is consistent with past check-ins
+- Energy levels are only worth noting if they reveal patterns
+- Priorities should be tracked to see if user follows through
+
+Return your response as a JSON object with:
+{
+  "hasUpdates": boolean,
+  "updates": [
+    {
+      "section": "Work" | "Family" | "Health" | "Relationships" | "Meaning/Fun" | "Finances" | "People" | "Current Season" | "Cross-Domain Tensions" | "Rules" | "Now/Next/Later",
+      "content": "The specific update to add or modify",
+      "action": "add" | "modify" | "remove"
+    }
+  ],
+  "summary": "One sentence summary of what was learned"
+}`;

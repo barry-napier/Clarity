@@ -15,14 +15,29 @@ export interface Capture extends Syncable {
 }
 
 export interface CheckinEntry {
-  type: 'emotion' | 'highlight' | 'challenge' | 'looking_forward';
-  content: string;
+  type: 'energy' | 'wins' | 'friction' | 'priority';
+  question: string; // AI's question
+  response: string; // User's response
+  followUp?: string; // AI's follow-up (if terse response)
+  followUpResponse?: string;
   timestamp: number;
 }
 
+export type CheckinStage =
+  | 'idle'
+  | 'awaiting_energy'
+  | 'awaiting_wins'
+  | 'awaiting_friction'
+  | 'awaiting_priority'
+  | 'complete';
+
 export interface Checkin extends Syncable {
   date: string; // YYYY-MM-DD
+  timeOfDay: 'morning' | 'evening';
+  status: 'in_progress' | 'complete' | 'skipped';
+  stage: CheckinStage; // Persisted for resume
   entries: CheckinEntry[];
+  completedAt?: number;
 }
 
 export interface ChatMessage {
@@ -104,9 +119,9 @@ export class ClarityDB extends Dexie {
   constructor() {
     super('ClarityDB');
 
-    this.version(2).stores({
+    this.version(3).stores({
       captures: 'id, date, status, syncStatus, updatedAt',
-      checkins: 'id, date, syncStatus, updatedAt',
+      checkins: 'id, date, status, syncStatus, updatedAt',
       chats: 'id, date, syncStatus, updatedAt',
       memory: 'id, syncStatus, updatedAt',
       northstar: 'id, syncStatus, updatedAt',

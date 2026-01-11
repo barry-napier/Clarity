@@ -3,13 +3,14 @@ import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-interface ChatInputProps {
+export interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
   className?: string;
+  placeholder?: string;
 }
 
-export function ChatInput({ onSend, disabled, className }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, className, placeholder = 'Message Clarity...' }: ChatInputProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,7 +52,7 @@ export function ChatInput({ onSend, disabled, className }: ChatInputProps) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Message Clarity..."
+            placeholder={placeholder}
             disabled={disabled}
             rows={1}
             className={cn(

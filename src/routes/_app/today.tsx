@@ -1,10 +1,12 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { Settings } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SyncStatus } from '@/components/sync-status';
 import { CaptureInput } from '@/components/capture-input';
 import { CaptureList } from '@/components/capture-list';
+import { CheckinCard } from '@/components/checkin/checkin-card';
+import { NotificationPrompt } from '@/components/notification-prompt';
 
 export const Route = createFileRoute('/_app/today')({
   component: TodayPage,
@@ -27,8 +29,14 @@ function TodayPage() {
             })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <SyncStatus />
+          <Link to="/settings">
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">Settings</span>
+            </Button>
+          </Link>
           <Button variant="ghost" size="sm" onClick={signOut}>
             Sign out
           </Button>
@@ -51,16 +59,10 @@ function TodayPage() {
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-3">
           Daily Check-in
         </h2>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">How are you feeling?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Take a moment to reflect on your day
-            </p>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <CheckinCard />
+          <NotificationPrompt />
+        </div>
       </section>
     </div>
   );

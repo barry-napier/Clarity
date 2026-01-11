@@ -20,8 +20,17 @@ interface Message {
   content: string;
 }
 
-// Map stages to entry types
-const STAGE_TO_TYPE: Record<string, CheckinEntry['type']> = {
+// Stages that have associated questions and entries
+type StageWithEntry = 'awaiting_energy' | 'awaiting_wins' | 'awaiting_friction' | 'awaiting_priority';
+
+// Type guard to check if a stage has an entry
+function isStageWithEntry(stage: CheckinStage): stage is StageWithEntry {
+  return stage === 'awaiting_energy' || stage === 'awaiting_wins' ||
+         stage === 'awaiting_friction' || stage === 'awaiting_priority';
+}
+
+// Map stages to entry types with constrained keys
+const STAGE_TO_TYPE: Record<StageWithEntry, CheckinEntry['type']> = {
   awaiting_energy: 'energy',
   awaiting_wins: 'wins',
   awaiting_friction: 'friction',
@@ -44,7 +53,7 @@ function getTimeOfDay(): 'morning' | 'evening' {
 }
 
 // Get stage questions based on time of day
-function getStageQuestions(timeOfDay: 'morning' | 'evening'): Record<string, string> {
+function getStageQuestions(timeOfDay: 'morning' | 'evening'): Record<StageWithEntry, string> {
   const isMorning = timeOfDay === 'morning';
   return {
     awaiting_energy: isMorning
@@ -101,6 +110,9 @@ export function useCheckinChat({
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentQuestionRef = useRef<string>('');
   const systemPromptRef = useRef<string>('');
+  // For RAF batching during streaming to reduce re-renders
+  const pendingContentRef = useRef<string>('');
+  const rafIdRef = useRef<number | null>(null);
   // Capture time of day at start of check-in for consistent questions throughout
   const timeOfDayRef = useRef<'morning' | 'evening'>(getTimeOfDay());
   const stageQuestionsRef = useRef(getStageQuestions(timeOfDayRef.current));
@@ -119,6 +131,16 @@ export function useCheckinChat({
     buildPrompt();
   }, [memoryContext]);
 
+  // Cleanup RAF on unmount to prevent memory leaks (#062)
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, []);
+
   // Start the check-in by asking the first question
   const startCheckin = useCallback(async () => {
     if (!isAIConfigured()) {
@@ -127,9 +149,10 @@ export function useCheckinChat({
     }
 
     // If resuming from a specific stage, get the appropriate question
-    const nextStage = stage === 'idle' ? 'awaiting_energy' : stage;
+    // If stage is 'complete' or 'idle', start from awaiting_energy
+    const nextStage: StageWithEntry = isStageWithEntry(stage) ? stage : 'awaiting_energy';
     const questions = stageQuestionsRef.current;
-    const question = questions[nextStage] || questions.awaiting_energy;
+    const question = questions[nextStage];
 
     // Check for gap message
     const daysSinceLastCheckin = await getDaysSinceLastCheckin();
@@ -176,8 +199,28 @@ export function useCheckinChat({
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
 
-      // Record the entry for the current stage
-      const entryType = STAGE_TO_TYPE[stage];
+      // Determine next stage FIRST to validate before persisting data (#061)
+      const nextStage = NEXT_STAGE[stage];
+
+      // Get entry type for current stage
+      const entryType = isStageWithEntry(stage) ? STAGE_TO_TYPE[stage] : null;
+
+      // If not completing, validate nextQuestion exists BEFORE persisting entry (#061)
+      // This prevents data loss if we can't proceed to the next question
+      let nextQuestion: string | undefined;
+      if (nextStage !== 'complete') {
+        nextQuestion = stageQuestionsRef.current[nextStage as StageWithEntry];
+        if (!nextQuestion) {
+          // Configuration error - don't persist partial data
+          console.error(`No question defined for stage: ${nextStage}`);
+          setError(new Error('Check-in configuration error. Please try again.'));
+          hapticError();
+          setMessages(messages); // Revert to previous messages
+          return;
+        }
+      }
+
+      // Now safe to record entry - we've validated we can proceed
       if (entryType) {
         const entry: CheckinEntry = {
           type: entryType,
@@ -188,16 +231,13 @@ export function useCheckinChat({
         await addCheckinEntry(checkinId, entry);
       }
 
-      // Determine next stage
-      const nextStage = NEXT_STAGE[stage];
-
       // If check-in is complete, finish up
       if (nextStage === 'complete') {
         // Add closing message
         const closingMessage: Message = {
           id: generateMessageId(),
           role: 'assistant',
-          content: "Got it. You're all set for today. Good luck with your priority!",
+          content: 'Got it. Your check-in is saved.',
         };
         const finalMessages = [...updatedMessages, closingMessage];
         setMessages(finalMessages);
@@ -233,9 +273,9 @@ export function useCheckinChat({
           content: m.content,
         }));
 
-        // Add instruction for next question
-        const nextQuestion = stageQuestionsRef.current[nextStage];
-        const instruction = `The user just answered the ${entryType} question. Acknowledge briefly (1-2 sentences), then ask: "${nextQuestion}"`;
+        // nextQuestion was already validated before persisting entry (#061)
+        // TypeScript needs the assertion since nextQuestion could technically be undefined
+        const instruction = `The user just answered the ${entryType} question. Acknowledge briefly (1-2 sentences), then ask: "${nextQuestion!}"`;
 
         // Stream the response
         const result = streamText({
@@ -246,17 +286,34 @@ export function useCheckinChat({
         });
 
         let fullContent = '';
+        pendingContentRef.current = '';
 
         for await (const chunk of result.textStream) {
           fullContent += chunk;
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant') {
-              lastMessage.content = fullContent;
-            }
-            return newMessages;
-          });
+          pendingContentRef.current = fullContent;
+
+          // Batch updates with RAF to cap at ~60fps instead of per-chunk
+          if (rafIdRef.current === null) {
+            rafIdRef.current = requestAnimationFrame(() => {
+              setMessages((prev) => {
+                const lastIndex = prev.length - 1;
+                const lastMessage = prev[lastIndex];
+                if (lastMessage?.role !== 'assistant') return prev;
+
+                return [
+                  ...prev.slice(0, lastIndex),
+                  { ...lastMessage, content: pendingContentRef.current },
+                ];
+              });
+              rafIdRef.current = null;
+            });
+          }
+        }
+
+        // Cancel any pending RAF and do final update
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
         }
 
         // Final update
@@ -267,12 +324,19 @@ export function useCheckinChat({
         setMessages(finalMessages);
 
         // Update stage and persist messages
-        currentQuestionRef.current = nextQuestion;
+        // nextQuestion is guaranteed defined here - validated before entry persistence (#061)
+        currentQuestionRef.current = nextQuestion!;
         setStage(nextStage);
         await updateCheckinStage(checkinId, nextStage);
         await updateCheckinMessages(checkinId, finalMessages);
         hapticMessageReceived();
       } catch (err) {
+        // Cancel any pending RAF on error/abort (#062)
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
+
         if (err instanceof Error && err.name === 'AbortError') {
           return;
         }

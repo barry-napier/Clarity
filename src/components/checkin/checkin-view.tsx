@@ -157,10 +157,8 @@ export function CheckinView({ checkin, onComplete }: CheckinViewProps) {
 
   return (
     <div
-      className={cn(
-        'flex flex-col h-full',
-        keyboardVisible && `pb-[${keyboardHeight}px]`
-      )}
+      className="flex flex-col h-full"
+      style={keyboardVisible ? { paddingBottom: keyboardHeight } : undefined}
     >
       {/* Progress indicator */}
       <div className="px-4 py-2 border-b border-border">

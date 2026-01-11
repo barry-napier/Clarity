@@ -6,7 +6,6 @@ import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
 import { ChatEmpty } from './chat-empty';
 import { StreamingIndicator } from './streaming-indicator';
-import { cn } from '@/lib/utils';
 import { isAIConfigured } from '@/lib/ai';
 import type { Chat as ChatType } from '@/lib/db/schema';
 
@@ -79,10 +78,8 @@ export function ChatView({ chat }: ChatViewProps) {
 
   return (
     <div
-      className={cn(
-        'flex flex-col h-full',
-        keyboardVisible && `pb-[${keyboardHeight}px]`
-      )}
+      className="flex flex-col h-full"
+      style={keyboardVisible ? { paddingBottom: keyboardHeight } : undefined}
     >
       {/* Messages */}
       <div

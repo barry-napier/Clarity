@@ -24,7 +24,10 @@ export function useCheckin(date: string) {
 export function useTodayCheckin() {
   const today = new Date().toISOString().split('T')[0];
   return useLiveQuery(
-    () => db.checkins.where('date').equals(today).first(),
+    async () => {
+      const checkin = await db.checkins.where('date').equals(today).first();
+      return checkin ?? null; // Explicit null for "no record" to distinguish from "loading"
+    },
     []
   );
 }

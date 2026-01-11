@@ -8,7 +8,7 @@ import { CaptureList } from '@/components/capture-list';
 import { CheckinCard } from '@/components/checkin/checkin-card';
 import { NotificationPrompt } from '@/components/notification-prompt';
 
-export const Route = createFileRoute('/_app/today')({
+export const Route = createFileRoute('/_app/today/')({
   component: TodayPage,
 });
 

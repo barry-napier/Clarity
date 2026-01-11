@@ -1,11 +1,24 @@
 import { createOpenAI } from '@ai-sdk/openai';
 
 /**
+ * Supabase Edge Function proxy configuration
+ * API key is stored securely server-side, not in client bundle
+ */
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+/**
  * OpenAI client for AI SDK
- * Uses environment variable for API key
+ * Routes through Supabase Edge Function proxy for security
+ * The actual OpenAI API key is stored server-side
  */
 export const openai = createOpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
+  // Use edge function as proxy - no API key in client
+  apiKey: 'proxy-via-supabase',
+  baseURL: `${SUPABASE_URL}/functions/v1/ai-proxy`,
+  headers: {
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+  },
 });
 
 /**
@@ -20,8 +33,8 @@ export const models = {
 };
 
 /**
- * Check if AI is configured (has API key)
+ * Check if AI is configured (Supabase connection available)
  */
 export function isAIConfigured(): boolean {
-  return Boolean(import.meta.env.VITE_OPENAI_API_KEY);
+  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 }

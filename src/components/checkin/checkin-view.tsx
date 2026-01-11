@@ -60,6 +60,8 @@ export function CheckinView({ checkin, onComplete }: CheckinViewProps) {
     checkinId: checkin.id,
     initialStage: checkin.stage,
     memoryContext: memory?.content,
+    // Pass persisted messages for resume capability
+    initialMessages: checkin.messages ?? [],
     onComplete: handleComplete,
   });
 
@@ -69,12 +71,14 @@ export function CheckinView({ checkin, onComplete }: CheckinViewProps) {
   }, [messages]);
 
   // Auto-start check-in when component mounts (only once)
+  // Skip if resuming with existing messages
   useEffect(() => {
-    if (!hasStartedRef.current && checkin.stage === 'idle' && messages.length === 0) {
+    const hasExistingMessages = (checkin.messages?.length ?? 0) > 0;
+    if (!hasStartedRef.current && checkin.stage === 'idle' && !hasExistingMessages) {
       hasStartedRef.current = true;
       startCheckin();
     }
-  }, [checkin.stage, messages.length, startCheckin]);
+  }, [checkin.stage, checkin.messages?.length, startCheckin]);
 
   // Auto-scroll to bottom (unless user has scrolled up)
   useEffect(() => {

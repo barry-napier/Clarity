@@ -1,4 +1,10 @@
-import { db, type Checkin, type CheckinEntry, type CheckinStage } from './db/schema';
+import {
+  db,
+  type Checkin,
+  type CheckinEntry,
+  type CheckinMessage,
+  type CheckinStage,
+} from './db/schema';
 
 /**
  * Get today's date in YYYY-MM-DD format
@@ -64,15 +70,16 @@ export async function createCheckin(): Promise<Checkin> {
     syncStatus: 'pending',
   };
 
-  await db.checkins.add(checkin);
+  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
+    await db.checkins.add(checkin);
 
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'checkin',
-    entityId: checkin.id,
-    operation: 'create',
-    createdAt: now,
-    retryCount: 0,
+    await db.syncQueue.add({
+      entityType: 'checkin',
+      entityId: checkin.id,
+      operation: 'create',
+      createdAt: now,
+      retryCount: 0,
+    });
   });
 
   return checkin;
@@ -87,31 +94,37 @@ export async function getCheckinById(id: string): Promise<Checkin | undefined> {
 
 /**
  * Add an entry to a check-in
+ * Uses atomic transaction to prevent race conditions with rapid submissions
  */
 export async function addCheckinEntry(
   checkinId: string,
   entry: CheckinEntry
 ): Promise<void> {
   const now = Date.now();
-  const checkin = await db.checkins.get(checkinId);
 
-  if (!checkin) {
-    throw new Error(`Checkin ${checkinId} not found`);
-  }
+  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
+    // Atomic modify - prevents race condition where two rapid updates could lose data
+    const updated = await db.checkins
+      .where('id')
+      .equals(checkinId)
+      .modify((checkin) => {
+        checkin.entries.push(entry);
+        checkin.updatedAt = now;
+        checkin.syncStatus = 'pending';
+      });
 
-  await db.checkins.update(checkinId, {
-    entries: [...checkin.entries, entry],
-    updatedAt: now,
-    syncStatus: 'pending',
-  });
+    if (updated === 0) {
+      throw new Error(`Checkin ${checkinId} not found`);
+    }
 
-  // Queue for sync
-  await db.syncQueue.add({
-    entityType: 'checkin',
-    entityId: checkinId,
-    operation: 'update',
-    createdAt: now,
-    retryCount: 0,
+    // Queue for sync (within same transaction)
+    await db.syncQueue.add({
+      entityType: 'checkin',
+      entityId: checkinId,
+      operation: 'update',
+      createdAt: now,
+      retryCount: 0,
+    });
   });
 }
 
@@ -124,19 +137,46 @@ export async function updateCheckinStage(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.checkins.update(checkinId, {
-    stage,
-    updatedAt: now,
-    syncStatus: 'pending',
-  });
+  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
+    await db.checkins.update(checkinId, {
+      stage,
+      updatedAt: now,
+      syncStatus: 'pending',
+    });
 
-  // Queue for sync
-  await db.syncQueue.add({
-    entityType: 'checkin',
-    entityId: checkinId,
-    operation: 'update',
-    createdAt: now,
-    retryCount: 0,
+    await db.syncQueue.add({
+      entityType: 'checkin',
+      entityId: checkinId,
+      operation: 'update',
+      createdAt: now,
+      retryCount: 0,
+    });
+  });
+}
+
+/**
+ * Update the check-in messages (for conversation persistence)
+ */
+export async function updateCheckinMessages(
+  checkinId: string,
+  messages: CheckinMessage[]
+): Promise<void> {
+  const now = Date.now();
+
+  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
+    await db.checkins.update(checkinId, {
+      messages,
+      updatedAt: now,
+      syncStatus: 'pending',
+    });
+
+    await db.syncQueue.add({
+      entityType: 'checkin',
+      entityId: checkinId,
+      operation: 'update',
+      createdAt: now,
+      retryCount: 0,
+    });
   });
 }
 
@@ -146,21 +186,22 @@ export async function updateCheckinStage(
 export async function completeCheckin(checkinId: string): Promise<void> {
   const now = Date.now();
 
-  await db.checkins.update(checkinId, {
-    status: 'complete',
-    stage: 'complete',
-    completedAt: now,
-    updatedAt: now,
-    syncStatus: 'pending',
-  });
+  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
+    await db.checkins.update(checkinId, {
+      status: 'complete',
+      stage: 'complete',
+      completedAt: now,
+      updatedAt: now,
+      syncStatus: 'pending',
+    });
 
-  // Queue for sync
-  await db.syncQueue.add({
-    entityType: 'checkin',
-    entityId: checkinId,
-    operation: 'update',
-    createdAt: now,
-    retryCount: 0,
+    await db.syncQueue.add({
+      entityType: 'checkin',
+      entityId: checkinId,
+      operation: 'update',
+      createdAt: now,
+      retryCount: 0,
+    });
   });
 }
 
@@ -170,20 +211,21 @@ export async function completeCheckin(checkinId: string): Promise<void> {
 export async function skipCheckin(checkinId: string): Promise<void> {
   const now = Date.now();
 
-  await db.checkins.update(checkinId, {
-    status: 'skipped',
-    stage: 'complete',
-    updatedAt: now,
-    syncStatus: 'pending',
-  });
+  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
+    await db.checkins.update(checkinId, {
+      status: 'skipped',
+      stage: 'complete',
+      updatedAt: now,
+      syncStatus: 'pending',
+    });
 
-  // Queue for sync
-  await db.syncQueue.add({
-    entityType: 'checkin',
-    entityId: checkinId,
-    operation: 'update',
-    createdAt: now,
-    retryCount: 0,
+    await db.syncQueue.add({
+      entityType: 'checkin',
+      entityId: checkinId,
+      operation: 'update',
+      createdAt: now,
+      retryCount: 0,
+    });
   });
 }
 

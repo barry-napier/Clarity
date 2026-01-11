@@ -5,6 +5,7 @@ import { buildCheckinSystemPrompt } from './prompts';
 import { generateMessageId } from '@/lib/chats';
 import {
   updateCheckinStage,
+  updateCheckinMessages,
   addCheckinEntry,
   completeCheckin,
   formatRecentCheckinsForContext,
@@ -125,9 +126,12 @@ export function useCheckinChat({
       content: openingMessage,
     };
 
-    setMessages([assistantMessage]);
+    const newMessages = [assistantMessage];
+    setMessages(newMessages);
     setStage(nextStage);
     await updateCheckinStage(checkinId, nextStage);
+    // Persist messages for resume
+    await updateCheckinMessages(checkinId, newMessages);
   }, [checkinId, stage]);
 
   // Send a message and handle state transitions
@@ -175,9 +179,11 @@ export function useCheckinChat({
           role: 'assistant',
           content: "Got it. You're all set for today. Good luck with your priority!",
         };
-        setMessages([...updatedMessages, closingMessage]);
+        const finalMessages = [...updatedMessages, closingMessage];
+        setMessages(finalMessages);
         setStage('complete');
         await updateCheckinStage(checkinId, 'complete');
+        await updateCheckinMessages(checkinId, finalMessages);
         await completeCheckin(checkinId);
         onComplete?.();
         hapticMessageReceived();
@@ -240,10 +246,11 @@ export function useCheckinChat({
         ];
         setMessages(finalMessages);
 
-        // Update stage
+        // Update stage and persist messages
         currentQuestionRef.current = nextQuestion;
         setStage(nextStage);
         await updateCheckinStage(checkinId, nextStage);
+        await updateCheckinMessages(checkinId, finalMessages);
         hapticMessageReceived();
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {

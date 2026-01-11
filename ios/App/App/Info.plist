@@ -51,10 +51,18 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.clarity.app</string>
+			<string>com.bnapier.clarity</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>clarity</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Google OAuth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.718146632898-ni9i0c90dnu21rj2mqnnohnrl6a2rqon</string>
 			</array>
 		</dict>
 	</array>

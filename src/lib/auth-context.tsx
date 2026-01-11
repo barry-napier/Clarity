@@ -52,6 +52,16 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper to add timeout to promises
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [authenticated, setAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,23 +69,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check authentication status on mount
   useEffect(() => {
+    let didTimeout = false;
+
+    // Hard fallback - if nothing happens in 3 seconds, force loading to false
+    const fallbackTimer = setTimeout(() => {
+      console.log('[AuthProvider] Fallback timeout triggered');
+      didTimeout = true;
+      setAuthenticated(false);
+      setIsLoading(false);
+    }, 3000);
+
     async function checkAuth() {
+      console.log('[AuthProvider] Checking auth status...');
       try {
-        const authed = await isAuthenticated();
-        setAuthenticated(authed);
+        const authed = await withTimeout(isAuthenticated(), 2000);
+        if (!didTimeout) {
+          console.log('[AuthProvider] Auth result:', authed);
+          setAuthenticated(authed);
+        }
       } catch (err) {
-        console.error('Failed to check auth status:', err);
+        if (!didTimeout) {
+          console.error('[AuthProvider] Failed to check auth status:', err);
+          setAuthenticated(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (!didTimeout) {
+          clearTimeout(fallbackTimer);
+          setIsLoading(false);
+        }
       }
     }
     checkAuth();
+
+    return () => clearTimeout(fallbackTimer);
   }, []);
 
   // Initialize deep link listener for OAuth callback (native only)
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
+      console.log('[AuthProvider] Setting up deep link listener');
       initDeepLinkListener(async (params) => {
+        console.log('[AuthProvider] Deep link received, closing browser');
+        // Close the in-app browser after receiving the callback
+        try {
+          await Browser.close();
+        } catch (e) {
+          // Browser might already be closed
+          console.log('[AuthProvider] Browser close error (may be expected):', e);
+        }
         await handleOAuthCallback(params);
       });
     }
@@ -83,16 +124,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const handleOAuthCallback = useCallback(
     async (params: OAuthCallbackParams) => {
+      console.log('[AuthProvider] handleOAuthCallback called with params:', params);
       setError(null);
 
       // Check for OAuth error
       if (params.error) {
+        console.error('[AuthProvider] OAuth error:', params.error);
         setError(`Authentication failed: ${params.error}`);
         return;
       }
 
       // Validate we have required params
       if (!params.code || !params.state) {
+        console.error('[AuthProvider] Missing code or state');
         setError('Invalid OAuth callback - missing code or state');
         return;
       }
@@ -101,29 +145,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setIsLoading(true);
 
         // Validate state to prevent CSRF attacks
+        console.log('[AuthProvider] Validating state...');
         const isValidState = await validateOAuthState(params.state);
+        console.log('[AuthProvider] State valid:', isValidState);
         if (!isValidState) {
           setError('Invalid OAuth state - possible CSRF attack');
           return;
         }
 
         // Retrieve PKCE verifier
+        console.log('[AuthProvider] Retrieving PKCE verifier...');
         const verifier = await retrievePKCEVerifier();
+        console.log('[AuthProvider] Verifier found:', !!verifier);
         if (!verifier) {
           setError('PKCE verifier not found or expired - please try again');
           return;
         }
 
         // Exchange code for tokens
+        console.log('[AuthProvider] Exchanging code for tokens...');
         const tokens = await exchangeCodeForTokens(params.code, verifier);
+        console.log('[AuthProvider] Tokens received, storing...');
         await storeTokens(tokens);
 
         // Clean up PKCE verifier
         await clearPKCEVerifier();
 
+        console.log('[AuthProvider] Authentication successful!');
         setAuthenticated(true);
       } catch (err) {
-        console.error('OAuth callback failed:', err);
+        console.error('[AuthProvider] OAuth callback failed:', err);
         setError(
           err instanceof Error ? err.message : 'Authentication failed'
         );

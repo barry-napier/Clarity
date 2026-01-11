@@ -17,10 +17,63 @@ export function useCheckin(date: string) {
   );
 }
 
+/**
+ * Get today's check-in with live updates
+ * Returns undefined while loading, null if none exists
+ */
+export function useTodayCheckin() {
+  const today = new Date().toISOString().split('T')[0];
+  return useLiveQuery(
+    async () => {
+      const checkin = await db.checkins.where('date').equals(today).first();
+      return checkin ?? null; // Explicit null for "no record" to distinguish from "loading"
+    },
+    []
+  );
+}
+
+/**
+ * Get recent check-ins (past 7 days) with live updates
+ */
+export function useRecentCheckins(limit = 7) {
+  return useLiveQuery(() => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoDate = weekAgo.toISOString().split('T')[0];
+
+    return db.checkins
+      .where('date')
+      .aboveOrEqual(weekAgoDate)
+      .reverse()
+      .limit(limit)
+      .toArray();
+  }, [limit]);
+}
+
 export function useChat(date: string) {
   return useLiveQuery(
     () => db.chats.where('date').equals(date).first(),
     [date]
+  );
+}
+
+export function useChatById(id: string | undefined) {
+  return useLiveQuery(
+    () => (id ? db.chats.get(id) : undefined),
+    [id]
+  );
+}
+
+export function useChatHistory(limit = 50) {
+  return useLiveQuery(
+    () => db.chats.orderBy('updatedAt').reverse().limit(limit).toArray(),
+    [limit]
+  );
+}
+
+export function useLatestChat() {
+  return useLiveQuery(
+    () => db.chats.orderBy('updatedAt').reverse().first()
   );
 }
 

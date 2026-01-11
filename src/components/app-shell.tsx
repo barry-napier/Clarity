@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { BottomNav } from './bottom-nav';
+import { ChatFab } from './chat-fab';
 import { cn } from '@/lib/utils';
 
 interface AppShellProps {
@@ -21,6 +22,9 @@ export function AppShell({ children }: AppShellProps) {
       >
         {children}
       </main>
+
+      {/* Floating chat button */}
+      <ChatFab />
 
       {/* Bottom navigation */}
       <BottomNav />

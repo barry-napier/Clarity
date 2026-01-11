@@ -38,13 +38,29 @@ const NEXT_STAGE: Record<CheckinStage, CheckinStage> = {
   complete: 'complete',
 };
 
-// Initial questions for each stage
-const STAGE_QUESTIONS: Record<string, string> = {
-  awaiting_energy: 'How are you feeling today?',
-  awaiting_wins: 'What went well recently?',
-  awaiting_friction: "What's been hard or draining?",
-  awaiting_priority: "What's the ONE thing you want to focus on today?",
-};
+// Determine time of day based on current hour (before noon = morning)
+function getTimeOfDay(): 'morning' | 'evening' {
+  return new Date().getHours() < 12 ? 'morning' : 'evening';
+}
+
+// Get stage questions based on time of day
+function getStageQuestions(timeOfDay: 'morning' | 'evening'): Record<string, string> {
+  const isMorning = timeOfDay === 'morning';
+  return {
+    awaiting_energy: isMorning
+      ? 'How are you feeling today?'
+      : 'How are you feeling right now?',
+    awaiting_wins: isMorning
+      ? 'What went well recently?'
+      : 'What went well today?',
+    awaiting_friction: isMorning
+      ? "What's on your mind that feels heavy?"
+      : "What drained you today?",
+    awaiting_priority: isMorning
+      ? "What's the ONE thing you want to focus on today?"
+      : "What's one thing you want to let go of tonight?",
+  };
+}
 
 interface UseCheckinChatOptions {
   checkinId: string;
@@ -85,6 +101,9 @@ export function useCheckinChat({
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentQuestionRef = useRef<string>('');
   const systemPromptRef = useRef<string>('');
+  // Capture time of day at start of check-in for consistent questions throughout
+  const timeOfDayRef = useRef<'morning' | 'evening'>(getTimeOfDay());
+  const stageQuestionsRef = useRef(getStageQuestions(timeOfDayRef.current));
 
   // Build system prompt on mount
   useEffect(() => {
@@ -109,7 +128,8 @@ export function useCheckinChat({
 
     // If resuming from a specific stage, get the appropriate question
     const nextStage = stage === 'idle' ? 'awaiting_energy' : stage;
-    const question = STAGE_QUESTIONS[nextStage] || STAGE_QUESTIONS.awaiting_energy;
+    const questions = stageQuestionsRef.current;
+    const question = questions[nextStage] || questions.awaiting_energy;
 
     // Check for gap message
     const daysSinceLastCheckin = await getDaysSinceLastCheckin();
@@ -214,7 +234,7 @@ export function useCheckinChat({
         }));
 
         // Add instruction for next question
-        const nextQuestion = STAGE_QUESTIONS[nextStage];
+        const nextQuestion = stageQuestionsRef.current[nextStage];
         const instruction = `The user just answered the ${entryType} question. Acknowledge briefly (1-2 sentences), then ask: "${nextQuestion}"`;
 
         // Stream the response

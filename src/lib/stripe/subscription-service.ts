@@ -21,29 +21,27 @@ export interface SubscriptionStatus {
  */
 export async function ensureSupabaseUser(googleUserId: string, email: string): Promise<void> {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/get-subscription`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ensure-user`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ googleUserId }),
+      body: JSON.stringify({ googleUserId, email }),
     });
 
     if (!response.ok) {
-      console.error('Error checking subscription:', await response.text());
+      console.error('Error ensuring user:', await response.text());
       // Don't throw - user can still use app, subscription check will fail gracefully
       return;
     }
 
     const data = await response.json();
 
-    // If no subscription exists, create one via checkout session endpoint
-    // This will create the user and trial subscription
-    if (data.status === 'none') {
-      console.log('New user detected, user will get trial on first subscription check');
-      // The user will be created when they first interact with subscription features
-      // or we can create them now by calling a separate endpoint
+    if (data.isNewUser) {
+      console.log('New user created with 7-day trial, expires:', data.trialEnd);
+    } else {
+      console.log('Existing user verified');
     }
   } catch (error) {
     console.error('Error ensuring Supabase user:', error);

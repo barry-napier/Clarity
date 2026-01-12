@@ -25,20 +25,9 @@ export async function createFrameworkSession(
     startedAt: now,
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   };
 
-  await db.transaction('rw', [db.frameworkSessions, db.syncQueue], async () => {
-    await db.frameworkSessions.add(session);
-
-    await db.syncQueue.add({
-      entityType: 'frameworkSession',
-      entityId: session.id,
-      operation: 'create',
-      createdAt: now,
-      retryCount: 0,
-    });
-  });
+  await db.frameworkSessions.add(session);
 
   return session;
 }
@@ -88,28 +77,17 @@ export async function addFrameworkEntry(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.frameworkSessions, db.syncQueue], async () => {
-    const updated = await db.frameworkSessions
-      .where('id')
-      .equals(sessionId)
-      .modify((session) => {
-        session.entries.push(entry);
-        session.updatedAt = now;
-        session.syncStatus = 'pending';
-      });
-
-    if (updated === 0) {
-      throw new Error(`Framework session ${sessionId} not found`);
-    }
-
-    await db.syncQueue.add({
-      entityType: 'frameworkSession',
-      entityId: sessionId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
+  const updated = await db.frameworkSessions
+    .where('id')
+    .equals(sessionId)
+    .modify((session) => {
+      session.entries.push(entry);
+      session.updatedAt = now;
     });
-  });
+
+  if (updated === 0) {
+    throw new Error(`Framework session ${sessionId} not found`);
+  }
 }
 
 /**
@@ -121,20 +99,9 @@ export async function updateSessionStage(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.frameworkSessions, db.syncQueue], async () => {
-    await db.frameworkSessions.update(sessionId, {
-      stage,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'frameworkSession',
-      entityId: sessionId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.frameworkSessions.update(sessionId, {
+    stage,
+    updatedAt: now,
   });
 }
 
@@ -147,20 +114,9 @@ export async function updateSessionMessages(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.frameworkSessions, db.syncQueue], async () => {
-    await db.frameworkSessions.update(sessionId, {
-      messages,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'frameworkSession',
-      entityId: sessionId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.frameworkSessions.update(sessionId, {
+    messages,
+    updatedAt: now,
   });
 }
 
@@ -173,22 +129,11 @@ export async function completeFrameworkSession(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.frameworkSessions, db.syncQueue], async () => {
-    await db.frameworkSessions.update(sessionId, {
-      status: 'completed',
-      completedAt: now,
-      insights,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'frameworkSession',
-      entityId: sessionId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.frameworkSessions.update(sessionId, {
+    status: 'completed',
+    completedAt: now,
+    insights,
+    updatedAt: now,
   });
 }
 
@@ -198,20 +143,9 @@ export async function completeFrameworkSession(
 export async function abandonFrameworkSession(sessionId: string): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.frameworkSessions, db.syncQueue], async () => {
-    await db.frameworkSessions.update(sessionId, {
-      status: 'abandoned',
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'frameworkSession',
-      entityId: sessionId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.frameworkSessions.update(sessionId, {
+    status: 'abandoned',
+    updatedAt: now,
   });
 }
 

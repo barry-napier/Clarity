@@ -13,7 +13,6 @@ export function createSyncable<T extends Syncable>(
     id: generateId(),
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   } as T;
 }
 
@@ -25,6 +24,5 @@ export function updateSyncable<T extends Syncable>(
     ...entity,
     ...updates,
     updatedAt: Date.now(),
-    syncStatus: 'pending',
   };
 }

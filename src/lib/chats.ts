@@ -70,19 +70,9 @@ export async function createChat(memorySnapshot?: string): Promise<Chat> {
     memorySnapshot,
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   };
 
   await db.chats.add(chat);
-
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'chat',
-    entityId: chat.id,
-    operation: 'create',
-    createdAt: now,
-    retryCount: 0,
-  });
 
   return chat;
 }
@@ -111,16 +101,6 @@ export async function addMessage(
   await db.chats.update(chatId, {
     messages: [...chat.messages, message],
     updatedAt: now,
-    syncStatus: 'pending',
-  });
-
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'chat',
-    entityId: chatId,
-    operation: 'update',
-    createdAt: now,
-    retryCount: 0,
   });
 
   return message;
@@ -149,7 +129,6 @@ export async function updateLastAssistantMessage(
   await db.chats.update(chatId, {
     messages,
     updatedAt: Date.now(),
-    syncStatus: 'pending',
   });
 }
 
@@ -178,18 +157,7 @@ export async function getChatsByDate(date: string): Promise<Chat[]> {
  * Delete a chat
  */
 export async function deleteChat(id: string): Promise<void> {
-  const now = Date.now();
-
   await db.chats.delete(id);
-
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'chat',
-    entityId: id,
-    operation: 'delete',
-    createdAt: now,
-    retryCount: 0,
-  });
 }
 
 /**
@@ -213,16 +181,6 @@ export async function persistChatMessages(
     await db.chats.update(chatId, {
       messages: chatMessages,
       updatedAt: now,
-      syncStatus: 'pending',
     });
   }
-
-  // Queue for sync
-  await db.syncQueue.add({
-    entityType: 'chat',
-    entityId: chatId,
-    operation: existing ? 'update' : 'create',
-    createdAt: now,
-    retryCount: 0,
-  });
 }

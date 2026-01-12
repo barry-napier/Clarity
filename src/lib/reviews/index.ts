@@ -72,20 +72,9 @@ export async function createWeeklyReview(): Promise<Review> {
     status: 'draft',
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   };
 
-  await db.transaction('rw', [db.reviews, db.syncQueue], async () => {
-    await db.reviews.add(review);
-
-    await db.syncQueue.add({
-      entityType: 'review',
-      entityId: review.id,
-      operation: 'create',
-      createdAt: now,
-      retryCount: 0,
-    });
-  });
+  await db.reviews.add(review);
 
   return review;
 }
@@ -129,20 +118,9 @@ export async function updateReviewMessages(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.reviews, db.syncQueue], async () => {
-    await db.reviews.update(reviewId, {
-      messages,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'review',
-      entityId: reviewId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.reviews.update(reviewId, {
+    messages,
+    updatedAt: now,
   });
 }
 
@@ -157,19 +135,8 @@ export async function updateReviewStage(
   // Stage is implicit in the messages, but we update the timestamp
   const now = Date.now();
 
-  await db.transaction('rw', [db.reviews, db.syncQueue], async () => {
-    await db.reviews.update(reviewId, {
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'review',
-      entityId: reviewId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.reviews.update(reviewId, {
+    updatedAt: now,
   });
 }
 
@@ -183,23 +150,12 @@ export async function completeReview(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.reviews, db.syncQueue], async () => {
-    await db.reviews.update(reviewId, {
-      content,
-      insights,
-      status: 'completed',
-      completedAt: now,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'review',
-      entityId: reviewId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.reviews.update(reviewId, {
+    content,
+    insights,
+    status: 'completed',
+    completedAt: now,
+    updatedAt: now,
   });
 }
 

@@ -102,7 +102,6 @@ ${updateLog}`;
       version: currentVersion + 1,
       tokenEstimate,
       updatedAt: now,
-      syncStatus: 'pending',
     });
   } else {
     await db.memory.add({
@@ -113,18 +112,8 @@ ${updateLog}`;
       tokenEstimate,
       createdAt: now,
       updatedAt: now,
-      syncStatus: 'pending',
     });
   }
-
-  // Queue for sync
-  await db.syncQueue.add({
-    entityType: 'memory',
-    entityId: 'main',
-    operation: currentMemory ? 'update' : 'create',
-    createdAt: now,
-    retryCount: 0,
-  });
 }
 
 /**
@@ -156,16 +145,6 @@ ${memory.content}`,
       tokenEstimate: Math.ceil(compressedContent.length / 4),
       lastCompaction: now,
       updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    // Queue for sync
-    await db.syncQueue.add({
-      entityType: 'memory',
-      entityId: 'main',
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
     });
 
     return true;
@@ -266,19 +245,9 @@ export async function initializeMemory(): Promise<Memory> {
     tokenEstimate: Math.ceil(content.length / 4),
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   };
 
   await db.memory.add(memory);
-
-  // Queue for sync
-  await db.syncQueue.add({
-    entityType: 'memory',
-    entityId: 'main',
-    operation: 'create',
-    createdAt: now,
-    retryCount: 0,
-  });
 
   return memory;
 }

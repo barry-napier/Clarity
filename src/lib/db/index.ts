@@ -9,7 +9,6 @@ export type {
   Memory,
   Northstar,
   Framework,
-  SyncQueueItem,
 } from './schema';
 export { generateId, createSyncable, updateSyncable } from './helpers';
 export {
@@ -19,5 +18,4 @@ export {
   useMemory,
   useNorthstar,
   useFrameworks,
-  usePendingSyncCount,
 } from './hooks';

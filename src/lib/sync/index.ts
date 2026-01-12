@@ -1,4 +1,3 @@
-export { enqueueSync, getQueuedItems, getQueueLength } from './queue';
 export {
   listAppDataFiles,
   uploadToAppFolder,

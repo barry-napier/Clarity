@@ -4,7 +4,7 @@ export interface Syncable {
   id: string;
   createdAt: number;
   updatedAt: number;
-  syncStatus: 'pending' | 'syncing' | 'synced' | 'error';
+  lastSyncedAt?: number; // Timestamp of last successful sync to Drive
   driveFileId?: string;
 }
 
@@ -109,7 +109,7 @@ export interface Review extends Syncable {
   completedAt?: number;
 }
 
-// Entity types for sync queue
+// Entity types for sync operations
 export type SyncEntityType =
   | 'capture'
   | 'checkin'
@@ -119,32 +119,6 @@ export type SyncEntityType =
   | 'framework'
   | 'frameworkSession'
   | 'review';
-
-export type SyncOperation = 'create' | 'update' | 'delete';
-
-// Type for creating a new sync queue item (ID not yet assigned)
-export interface NewSyncQueueItem {
-  entityType: SyncEntityType;
-  entityId: string;
-  operation: SyncOperation;
-  createdAt: number;
-  retryCount: number;
-}
-
-// Type for a persisted sync queue item (ID is always present after DB retrieval)
-export interface SyncQueueItem extends NewSyncQueueItem {
-  id: number;
-}
-
-// Legacy type for backward compatibility with Dexie (allows optional id for add())
-export interface SyncQueueItemRecord {
-  id?: number;
-  entityType: SyncEntityType;
-  entityId: string;
-  operation: SyncOperation;
-  createdAt: number;
-  retryCount: number;
-}
 
 // Map old v2 entry types to new v3 types
 const V2_TO_V3_TYPE_MAP: Record<string, CheckinEntry['type']> = {
@@ -163,7 +137,6 @@ export class ClarityDB extends Dexie {
   frameworks!: EntityTable<Framework, 'id'>;
   frameworkSessions!: EntityTable<FrameworkSession, 'id'>;
   reviews!: EntityTable<Review, 'id'>;
-  syncQueue!: EntityTable<SyncQueueItemRecord, 'id'>;
 
   constructor() {
     super('ClarityDB');
@@ -258,6 +231,52 @@ export class ClarityDB extends Dexie {
       reviews: 'id, type, periodStart, status, syncStatus, updatedAt',
       syncQueue: '++id, entityType, entityId, createdAt',
     });
+
+    // Version 5: Remove queue-based sync, switch to timestamp-based sync
+    // - Remove syncStatus indexes (field removed from Syncable)
+    // - Delete syncQueue table
+    // - Add lastSyncedAt field (handled by schema change)
+    this.version(5)
+      .stores({
+        captures: 'id, date, status, updatedAt',
+        checkins: 'id, date, status, updatedAt',
+        chats: 'id, date, updatedAt',
+        memory: 'id, updatedAt',
+        northstar: 'id, updatedAt',
+        frameworks: 'id, type, updatedAt',
+        frameworkSessions: 'id, frameworkType, status, updatedAt',
+        reviews: 'id, type, periodStart, status, updatedAt',
+        syncQueue: null, // Delete the table
+      })
+      .upgrade((tx) => {
+        // Migrate all syncable entities: remove syncStatus, add lastSyncedAt
+        const tables = [
+          'captures',
+          'checkins',
+          'chats',
+          'memory',
+          'northstar',
+          'frameworks',
+          'frameworkSessions',
+          'reviews',
+        ];
+
+        return Promise.all(
+          tables.map((tableName) =>
+            tx
+              .table(tableName)
+              .toCollection()
+              .modify((entity) => {
+                // If entity was synced, preserve that as lastSyncedAt
+                if (entity.syncStatus === 'synced' && entity.driveFileId) {
+                  entity.lastSyncedAt = entity.updatedAt;
+                }
+                // Remove the old syncStatus field
+                delete entity.syncStatus;
+              })
+          )
+        );
+      });
   }
 }
 

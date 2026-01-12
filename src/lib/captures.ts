@@ -26,19 +26,9 @@ export async function createCapture(content: string): Promise<Capture> {
     status: 'new',
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   };
 
   await db.captures.add(capture);
-
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'capture',
-    entityId: capture.id,
-    operation: 'create',
-    createdAt: now,
-    retryCount: 0,
-  });
 
   return capture;
 }
@@ -52,16 +42,6 @@ export async function markCaptureDone(id: string): Promise<void> {
   await db.captures.update(id, {
     status: 'done',
     updatedAt: now,
-    syncStatus: 'pending',
-  });
-
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'capture',
-    entityId: id,
-    operation: 'update',
-    createdAt: now,
-    retryCount: 0,
   });
 }
 
@@ -74,16 +54,6 @@ export async function markCaptureNew(id: string): Promise<void> {
   await db.captures.update(id, {
     status: 'new',
     updatedAt: now,
-    syncStatus: 'pending',
-  });
-
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'capture',
-    entityId: id,
-    operation: 'update',
-    createdAt: now,
-    retryCount: 0,
   });
 }
 
@@ -91,18 +61,7 @@ export async function markCaptureNew(id: string): Promise<void> {
  * Delete a capture
  */
 export async function deleteCapture(id: string): Promise<void> {
-  const now = Date.now();
-
   await db.captures.delete(id);
-
-  // Add to sync queue
-  await db.syncQueue.add({
-    entityType: 'capture',
-    entityId: id,
-    operation: 'delete',
-    createdAt: now,
-    retryCount: 0,
-  });
 }
 
 /**

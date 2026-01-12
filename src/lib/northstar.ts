@@ -18,27 +18,15 @@ export async function saveNorthstar(content: string): Promise<Northstar> {
 
   if (existing) {
     // Update existing
-    await db.transaction('rw', [db.northstar, db.syncQueue], async () => {
-      await db.northstar.update('main', {
-        content,
-        updatedAt: now,
-        syncStatus: 'pending',
-      });
-
-      await db.syncQueue.add({
-        entityType: 'northstar',
-        entityId: 'main',
-        operation: 'update',
-        createdAt: now,
-        retryCount: 0,
-      });
+    await db.northstar.update('main', {
+      content,
+      updatedAt: now,
     });
 
     return {
       ...existing,
       content,
       updatedAt: now,
-      syncStatus: 'pending',
     };
   }
 
@@ -49,20 +37,9 @@ export async function saveNorthstar(content: string): Promise<Northstar> {
     content,
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   };
 
-  await db.transaction('rw', [db.northstar, db.syncQueue], async () => {
-    await db.northstar.add(northstar);
-
-    await db.syncQueue.add({
-      entityType: 'northstar',
-      entityId: 'main',
-      operation: 'create',
-      createdAt: now,
-      retryCount: 0,
-    });
-  });
+  await db.northstar.add(northstar);
 
   return northstar;
 }

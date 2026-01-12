@@ -140,7 +140,7 @@ export async function hydrateFromDrive(): Promise<{
           await db.captures.put({
             ...capture,
             driveFileId: file.id,
-            syncStatus: 'pending', // Mark pending to re-sync to new format
+            // No lastSyncedAt = will re-sync to new markdown format
           });
           hydrated++;
         } catch (error) {

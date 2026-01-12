@@ -354,7 +354,7 @@ export function parseCaptures(markdown: string, date: string, fileId: string): C
         status: isDone ? 'done' : 'new',
         createdAt,
         updatedAt: createdAt,
-        syncStatus: 'synced',
+        lastSyncedAt: createdAt,
         driveFileId: fileId,
       });
     }
@@ -426,7 +426,7 @@ export function parseCheckin(
     entries,
     createdAt,
     updatedAt: createdAt,
-    syncStatus: 'synced',
+    lastSyncedAt: createdAt,
     driveFileId: fileId,
   };
 }
@@ -435,16 +435,17 @@ export function parseCheckin(
  * Parse memory markdown - it's already markdown, just wrap it
  */
 export function parseMemory(markdown: string, fileId: string): Memory {
+  const now = Date.now();
   return {
     id: 'memory',
     key: 'main',
     content: markdown,
     version: 1,
     tokenEstimate: Math.ceil(markdown.length / 4),
-    lastCompaction: Date.now(),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    syncStatus: 'synced',
+    lastCompaction: now,
+    createdAt: now,
+    updatedAt: now,
+    lastSyncedAt: now,
     driveFileId: fileId,
   };
 }
@@ -453,13 +454,14 @@ export function parseMemory(markdown: string, fileId: string): Memory {
  * Parse northstar markdown - it's already markdown, just wrap it
  */
 export function parseNorthstar(markdown: string, fileId: string): Northstar {
+  const now = Date.now();
   return {
     id: 'northstar',
     key: 'main',
     content: markdown,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    syncStatus: 'synced',
+    createdAt: now,
+    updatedAt: now,
+    lastSyncedAt: now,
     driveFileId: fileId,
   };
 }

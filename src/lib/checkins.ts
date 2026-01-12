@@ -67,20 +67,9 @@ export async function createCheckin(): Promise<Checkin> {
     entries: [],
     createdAt: now,
     updatedAt: now,
-    syncStatus: 'pending',
   };
 
-  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
-    await db.checkins.add(checkin);
-
-    await db.syncQueue.add({
-      entityType: 'checkin',
-      entityId: checkin.id,
-      operation: 'create',
-      createdAt: now,
-      retryCount: 0,
-    });
-  });
+  await db.checkins.add(checkin);
 
   return checkin;
 }
@@ -102,30 +91,18 @@ export async function addCheckinEntry(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
-    // Atomic modify - prevents race condition where two rapid updates could lose data
-    const updated = await db.checkins
-      .where('id')
-      .equals(checkinId)
-      .modify((checkin) => {
-        checkin.entries.push(entry);
-        checkin.updatedAt = now;
-        checkin.syncStatus = 'pending';
-      });
-
-    if (updated === 0) {
-      throw new Error(`Checkin ${checkinId} not found`);
-    }
-
-    // Queue for sync (within same transaction)
-    await db.syncQueue.add({
-      entityType: 'checkin',
-      entityId: checkinId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
+  // Atomic modify - prevents race condition where two rapid updates could lose data
+  const updated = await db.checkins
+    .where('id')
+    .equals(checkinId)
+    .modify((checkin) => {
+      checkin.entries.push(entry);
+      checkin.updatedAt = now;
     });
-  });
+
+  if (updated === 0) {
+    throw new Error(`Checkin ${checkinId} not found`);
+  }
 }
 
 /**
@@ -137,20 +114,9 @@ export async function updateCheckinStage(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
-    await db.checkins.update(checkinId, {
-      stage,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'checkin',
-      entityId: checkinId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.checkins.update(checkinId, {
+    stage,
+    updatedAt: now,
   });
 }
 
@@ -163,20 +129,9 @@ export async function updateCheckinMessages(
 ): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
-    await db.checkins.update(checkinId, {
-      messages,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'checkin',
-      entityId: checkinId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.checkins.update(checkinId, {
+    messages,
+    updatedAt: now,
   });
 }
 
@@ -186,22 +141,11 @@ export async function updateCheckinMessages(
 export async function completeCheckin(checkinId: string): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
-    await db.checkins.update(checkinId, {
-      status: 'complete',
-      stage: 'complete',
-      completedAt: now,
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'checkin',
-      entityId: checkinId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.checkins.update(checkinId, {
+    status: 'complete',
+    stage: 'complete',
+    completedAt: now,
+    updatedAt: now,
   });
 }
 
@@ -211,21 +155,10 @@ export async function completeCheckin(checkinId: string): Promise<void> {
 export async function skipCheckin(checkinId: string): Promise<void> {
   const now = Date.now();
 
-  await db.transaction('rw', [db.checkins, db.syncQueue], async () => {
-    await db.checkins.update(checkinId, {
-      status: 'skipped',
-      stage: 'complete',
-      updatedAt: now,
-      syncStatus: 'pending',
-    });
-
-    await db.syncQueue.add({
-      entityType: 'checkin',
-      entityId: checkinId,
-      operation: 'update',
-      createdAt: now,
-      retryCount: 0,
-    });
+  await db.checkins.update(checkinId, {
+    status: 'skipped',
+    stage: 'complete',
+    updatedAt: now,
   });
 }
 

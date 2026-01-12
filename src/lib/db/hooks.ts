@@ -94,10 +94,6 @@ export function useFrameworks(type?: string) {
   }, [type]);
 }
 
-export function usePendingSyncCount() {
-  return useLiveQuery(() => db.syncQueue.count());
-}
-
 export function useFrameworkSession(id: string | undefined) {
   return useLiveQuery(
     () => (id ? db.frameworkSessions.get(id) : undefined),

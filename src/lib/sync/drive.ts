@@ -86,11 +86,11 @@ async function createClarityFolderInternal(accessToken: string): Promise<string>
   // Double-check cache after acquiring "lock"
   if (clarityFolderId) return clarityFolderId;
 
-  // Search for existing folder
+  // Search for existing folder in root of My Drive
   const searchResponse = await fetch(
     'https://www.googleapis.com/drive/v3/files?' +
       new URLSearchParams({
-        q: `name='${CLARITY_FOLDER_NAME}' and mimeType='${FOLDER_MIME_TYPE}' and trashed=false`,
+        q: `name='${CLARITY_FOLDER_NAME}' and mimeType='${FOLDER_MIME_TYPE}' and 'root' in parents and trashed=false`,
         fields: 'files(id,name)',
       }),
     { headers: { Authorization: `Bearer ${accessToken}` } }

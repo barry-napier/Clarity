@@ -14,13 +14,23 @@ const statusConfig: Record<
 };
 
 export function SyncStatus() {
-  const { status } = useSync();
+  const { status, sync } = useSync();
   const { icon: Icon, label, className } = statusConfig[status];
+  const isClickable = status !== 'syncing';
 
   return (
-    <div className="flex items-center gap-1.5 text-xs">
+    <button
+      onClick={() => isClickable && sync()}
+      disabled={!isClickable}
+      className={cn(
+        'flex items-center gap-1.5 text-xs rounded-md px-2 py-1 -mx-2 -my-1',
+        'transition-colors',
+        isClickable && 'hover:bg-muted cursor-pointer',
+        !isClickable && 'cursor-default'
+      )}
+    >
       <Icon className={cn('h-3.5 w-3.5', className)} />
       <span className="text-muted-foreground">{label}</span>
-    </div>
+    </button>
   );
 }

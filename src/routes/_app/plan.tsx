@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { NorthstarSection } from '@/components/plan/northstar-section';
+import { LifeDomains } from '@/components/plan/life-domains';
+import { FrameworkList } from '@/components/plan/framework-list';
 
 export const Route = createFileRoute('/_app/plan')({
   component: PlanPage,
@@ -17,35 +19,13 @@ function PlanPage() {
       </div>
 
       {/* North Star */}
-      <section>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-3">
-          North Star
-        </h2>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">What matters most?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Define your guiding principles and long-term vision
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+      <NorthstarSection />
 
-      {/* Goals */}
-      <section>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground mb-3">
-          Goals
-        </h2>
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">
-              Set meaningful goals aligned with your north star
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+      {/* Life Domains */}
+      <LifeDomains />
+
+      {/* Thinking Frameworks */}
+      <FrameworkList />
     </div>
   );
 }

@@ -98,6 +98,8 @@ function getTable(entityType: SyncEntityType): SyncableTable {
     memory: db.memory,
     northstar: db.northstar,
     framework: db.frameworks,
+    frameworkSession: db.frameworkSessions,
+    review: db.reviews,
   };
 
   return tables[entityType];

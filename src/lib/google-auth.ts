@@ -21,7 +21,8 @@ function getClientId(): string {
 }
 
 const SCOPES = [
-  'https://www.googleapis.com/auth/drive.appdata',
+  'https://www.googleapis.com/auth/drive.file', // Create/access files app creates (visible Clarity folder)
+  'https://www.googleapis.com/auth/drive.appdata', // Legacy hidden folder (for migration)
   'openid',
   'email',
   'profile',

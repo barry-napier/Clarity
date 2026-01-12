@@ -314,3 +314,152 @@ export function entityToMarkdown(
       return JSON.stringify(entity, null, 2);
   }
 }
+
+// ============================================================
+// MARKDOWN PARSERS (for hydrating from Drive)
+// ============================================================
+
+/**
+ * Parse captures markdown file back to Capture entities
+ * Format: - [x] or - [ ] content *(HH:MM AM/PM)*
+ */
+export function parseCaptures(markdown: string, date: string, fileId: string): Capture[] {
+  const captures: Capture[] = [];
+  const lines = markdown.split('\n');
+
+  for (const line of lines) {
+    // Match: - [x] or - [ ] content *(time)*
+    const match = line.match(/^- \[(x| )\] (.+?) \*\((\d{1,2}:\d{2} [AP]M)\)\*$/);
+    if (match) {
+      const isDone = match[1] === 'x';
+      const content = match[2];
+      const timeStr = match[3];
+
+      // Parse time and combine with date
+      const [time, period] = timeStr.split(' ');
+      const [hourStr, minute] = time.split(':');
+      let hour = parseInt(hourStr, 10);
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+
+      const createdAt = new Date(`${date}T${String(hour).padStart(2, '0')}:${minute}:00`).getTime();
+
+      // Generate deterministic ID from content and time
+      const id = `capture-${date}-${createdAt}`;
+
+      captures.push({
+        id,
+        content,
+        date,
+        status: isDone ? 'done' : 'new',
+        createdAt,
+        updatedAt: createdAt,
+        syncStatus: 'synced',
+        driveFileId: fileId,
+      });
+    }
+  }
+
+  return captures;
+}
+
+/**
+ * Parse checkin markdown file back to Checkin entity
+ */
+export function parseCheckin(
+  markdown: string,
+  date: string,
+  timeOfDay: 'morning' | 'evening',
+  fileId: string
+): Checkin | null {
+  const entries: Checkin['entries'] = [];
+  const createdAt = new Date(`${date}T${timeOfDay === 'morning' ? '08' : '18'}:00:00`).getTime();
+
+  // Extract sections
+  const sections = markdown.split(/^## /m).slice(1); // Skip header
+
+  for (const section of sections) {
+    const lines = section.trim().split('\n');
+    const title = lines[0].trim();
+
+    const typeMap: Record<string, Checkin['entries'][0]['type']> = {
+      'Energy Level': 'energy',
+      'Wins': 'wins',
+      'Friction': 'friction',
+      'Priority': 'priority',
+    };
+
+    const type = typeMap[title];
+    if (!type) continue;
+
+    let question = '';
+    let response = '';
+    let followUp = '';
+    let followUpResponse = '';
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith('**Q:**')) {
+        question = line.replace('**Q:**', '').trim();
+      } else if (line.startsWith('**A:**')) {
+        response = line.replace('**A:**', '').trim();
+      } else if (line.startsWith('**Follow-up:**')) {
+        followUp = line.replace('**Follow-up:**', '').trim();
+      } else if (line.startsWith('**Response:**')) {
+        followUpResponse = line.replace('**Response:**', '').trim();
+      }
+    }
+
+    if (question && response) {
+      entries.push({ type, question, response, followUp, followUpResponse, timestamp: createdAt });
+    }
+  }
+
+  if (entries.length === 0) return null;
+
+  return {
+    id: `checkin-${date}-${timeOfDay}`,
+    date,
+    timeOfDay,
+    status: 'complete',
+    stage: 'complete',
+    entries,
+    createdAt,
+    updatedAt: createdAt,
+    syncStatus: 'synced',
+    driveFileId: fileId,
+  };
+}
+
+/**
+ * Parse memory markdown - it's already markdown, just wrap it
+ */
+export function parseMemory(markdown: string, fileId: string): Memory {
+  return {
+    id: 'memory',
+    key: 'main',
+    content: markdown,
+    version: 1,
+    tokenEstimate: Math.ceil(markdown.length / 4),
+    lastCompaction: Date.now(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    syncStatus: 'synced',
+    driveFileId: fileId,
+  };
+}
+
+/**
+ * Parse northstar markdown - it's already markdown, just wrap it
+ */
+export function parseNorthstar(markdown: string, fileId: string): Northstar {
+  return {
+    id: 'northstar',
+    key: 'main',
+    content: markdown,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    syncStatus: 'synced',
+    driveFileId: fileId,
+  };
+}

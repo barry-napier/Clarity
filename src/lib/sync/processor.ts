@@ -3,9 +3,10 @@ import {
   type SyncQueueItem,
   type Syncable,
   type SyncEntityType,
+  type Capture,
 } from '../db/schema';
 import { uploadMarkdownFile, deleteFromDrive } from './drive';
-import { entityToMarkdown, getMarkdownFilename } from './markdown';
+import { entityToMarkdown, getMarkdownFilename, capturesToMarkdown } from './markdown';
 import { getValidAccessToken } from '../token-service';
 import { getQueuedItems, removeFromQueue, incrementRetry } from './queue';
 import type { EntityTable } from 'dexie';
@@ -63,6 +64,38 @@ async function processQueueItem(
 
   if (!entity) {
     // Entity was deleted locally before sync
+    return;
+  }
+
+  // Special handling for captures: aggregate all captures for the same date
+  if (item.entityType === 'capture') {
+    const capture = entity as unknown as Capture;
+    const allCapturesForDate = await db.captures
+      .where('date')
+      .equals(capture.date)
+      .toArray();
+
+    const markdown = capturesToMarkdown(allCapturesForDate, capture.date);
+    const filename = `${capture.date}.md`;
+
+    // Find existing driveFileId from any capture for this date
+    const existingFileId = allCapturesForDate.find((c) => c.driveFileId)?.driveFileId;
+
+    const driveFileId = await uploadMarkdownFile(
+      accessToken,
+      filename,
+      markdown,
+      'captures',
+      existingFileId
+    );
+
+    // Update all captures for this date with the shared driveFileId
+    for (const c of allCapturesForDate) {
+      await db.captures.update(c.id, {
+        driveFileId,
+        syncStatus: 'synced',
+      });
+    }
     return;
   }
 

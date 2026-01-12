@@ -4,7 +4,8 @@ import {
   type Syncable,
   type SyncEntityType,
 } from '../db/schema';
-import { uploadToAppFolder, deleteFromDrive } from './drive';
+import { uploadMarkdownFile, deleteFromDrive } from './drive';
+import { entityToMarkdown, getMarkdownFilename } from './markdown';
 import { getValidAccessToken } from '../token-service';
 import { getQueuedItems, removeFromQueue, incrementRetry } from './queue';
 import type { EntityTable } from 'dexie';
@@ -65,11 +66,18 @@ async function processQueueItem(
     return;
   }
 
-  const fileName = `${item.entityType}-${item.entityId}.json`;
-  const driveFileId = await uploadToAppFolder(
+  // Convert entity to markdown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markdown = entityToMarkdown(item.entityType, entity as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { folder, filename } = getMarkdownFilename(item.entityType, entity as any);
+
+  // Upload to visible Clarity folder
+  const driveFileId = await uploadMarkdownFile(
     accessToken,
-    fileName,
-    entity,
+    filename,
+    markdown,
+    folder || undefined,
     entity.driveFileId
   );
 
@@ -98,6 +106,8 @@ function getTable(entityType: SyncEntityType): SyncableTable {
     memory: db.memory,
     northstar: db.northstar,
     framework: db.frameworks,
+    frameworkSession: db.frameworkSessions,
+    review: db.reviews,
   };
 
   return tables[entityType];

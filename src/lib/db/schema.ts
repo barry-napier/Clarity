@@ -80,6 +80,35 @@ export interface Framework extends Syncable {
   content: string;
 }
 
+export interface FrameworkEntry {
+  stage: number;
+  question: string;
+  response: string;
+  timestamp: number;
+}
+
+export interface FrameworkSession extends Syncable {
+  frameworkType: string; // 'regret-minimization' | 'ceo-energy' | 'annual-review'
+  status: 'in_progress' | 'completed' | 'abandoned';
+  stage: number;
+  entries: FrameworkEntry[];
+  messages?: Array<{ id: string; role: 'user' | 'assistant'; content: string }>;
+  startedAt: number;
+  completedAt?: number;
+  insights?: string; // AI-synthesized insights from session
+}
+
+export interface Review extends Syncable {
+  type: 'weekly' | 'monthly' | 'quarterly';
+  periodStart: number; // ISO week start (Monday) timestamp
+  periodEnd: number; // ISO week end (Sunday) timestamp
+  content: string; // Markdown summary
+  insights: string[]; // Key patterns/observations
+  status: 'draft' | 'completed';
+  messages?: Array<{ id: string; role: 'user' | 'assistant'; content: string }>;
+  completedAt?: number;
+}
+
 // Entity types for sync queue
 export type SyncEntityType =
   | 'capture'
@@ -87,7 +116,9 @@ export type SyncEntityType =
   | 'chat'
   | 'memory'
   | 'northstar'
-  | 'framework';
+  | 'framework'
+  | 'frameworkSession'
+  | 'review';
 
 export type SyncOperation = 'create' | 'update' | 'delete';
 
@@ -130,6 +161,8 @@ export class ClarityDB extends Dexie {
   memory!: EntityTable<Memory, 'id'>;
   northstar!: EntityTable<Northstar, 'id'>;
   frameworks!: EntityTable<Framework, 'id'>;
+  frameworkSessions!: EntityTable<FrameworkSession, 'id'>;
+  reviews!: EntityTable<Review, 'id'>;
   syncQueue!: EntityTable<SyncQueueItemRecord, 'id'>;
 
   constructor() {
@@ -212,6 +245,19 @@ export class ClarityDB extends Dexie {
             }
           });
       });
+
+    // Version 4: Add FrameworkSession and Review tables for Phase 6
+    this.version(4).stores({
+      captures: 'id, date, status, syncStatus, updatedAt',
+      checkins: 'id, date, status, syncStatus, updatedAt',
+      chats: 'id, date, syncStatus, updatedAt',
+      memory: 'id, syncStatus, updatedAt',
+      northstar: 'id, syncStatus, updatedAt',
+      frameworks: 'id, type, syncStatus, updatedAt',
+      frameworkSessions: 'id, frameworkType, status, syncStatus, updatedAt',
+      reviews: 'id, type, periodStart, status, syncStatus, updatedAt',
+      syncQueue: '++id, entityType, entityId, createdAt',
+    });
   }
 }
 

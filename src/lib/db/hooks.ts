@@ -97,3 +97,68 @@ export function useFrameworks(type?: string) {
 export function usePendingSyncCount() {
   return useLiveQuery(() => db.syncQueue.count());
 }
+
+export function useFrameworkSession(id: string | undefined) {
+  return useLiveQuery(
+    () => (id ? db.frameworkSessions.get(id) : undefined),
+    [id]
+  );
+}
+
+export function useFrameworkSessions(frameworkType?: string) {
+  return useLiveQuery(() => {
+    if (frameworkType) {
+      return db.frameworkSessions
+        .where('frameworkType')
+        .equals(frameworkType)
+        .toArray();
+    }
+    return db.frameworkSessions.orderBy('updatedAt').reverse().toArray();
+  }, [frameworkType]);
+}
+
+export function useInProgressFrameworkSession(frameworkType: string) {
+  return useLiveQuery(
+    () =>
+      db.frameworkSessions
+        .where('frameworkType')
+        .equals(frameworkType)
+        .and((session) => session.status === 'in_progress')
+        .first(),
+    [frameworkType]
+  );
+}
+
+export function useReview(id: string | undefined) {
+  return useLiveQuery(
+    () => (id ? db.reviews.get(id) : undefined),
+    [id]
+  );
+}
+
+export function useReviews(type?: 'weekly' | 'monthly' | 'quarterly') {
+  return useLiveQuery(() => {
+    if (type) {
+      return db.reviews.where('type').equals(type).reverse().sortBy('periodStart');
+    }
+    return db.reviews.orderBy('periodStart').reverse().toArray();
+  }, [type]);
+}
+
+export function useCurrentWeekReview() {
+  return useLiveQuery(async () => {
+    // Get current week's Monday at midnight
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    monday.setHours(0, 0, 0, 0);
+    const weekStart = monday.getTime();
+
+    return db.reviews
+      .where('periodStart')
+      .equals(weekStart)
+      .and((review) => review.type === 'weekly')
+      .first();
+  }, []);
+}

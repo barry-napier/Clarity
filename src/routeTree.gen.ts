@@ -21,6 +21,9 @@ import { Route as AppPlanRouteImport } from './routes/_app/plan'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
 import { Route as AppTodayIndexRouteImport } from './routes/_app/today/index'
 import { Route as AppTodayCheckinRouteImport } from './routes/_app/today/checkin'
+import { Route as AppReflectReviewRouteImport } from './routes/_app/reflect/review'
+import { Route as AppPlanNorthstarRouteImport } from './routes/_app/plan/northstar'
+import { Route as AppPlanFrameworkTypeRouteImport } from './routes/_app/plan/framework.$type'
 
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
@@ -81,32 +84,53 @@ const AppTodayCheckinRoute = AppTodayCheckinRouteImport.update({
   path: '/today/checkin',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReflectReviewRoute = AppReflectReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => AppReflectRoute,
+} as any)
+const AppPlanNorthstarRoute = AppPlanNorthstarRouteImport.update({
+  id: '/northstar',
+  path: '/northstar',
+  getParentRoute: () => AppPlanRoute,
+} as any)
+const AppPlanFrameworkTypeRoute = AppPlanFrameworkTypeRouteImport.update({
+  id: '/framework/$type',
+  path: '/framework/$type',
+  getParentRoute: () => AppPlanRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/chat': typeof AppChatRoute
-  '/plan': typeof AppPlanRoute
-  '/reflect': typeof AppReflectRoute
+  '/plan': typeof AppPlanRouteWithChildren
+  '/reflect': typeof AppReflectRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/oauth/callback': typeof OauthCallbackRoute
   '/subscription/success': typeof SubscriptionSuccessRoute
+  '/plan/northstar': typeof AppPlanNorthstarRoute
+  '/reflect/review': typeof AppReflectReviewRoute
   '/today/checkin': typeof AppTodayCheckinRoute
   '/today': typeof AppTodayIndexRoute
+  '/plan/framework/$type': typeof AppPlanFrameworkTypeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/chat': typeof AppChatRoute
-  '/plan': typeof AppPlanRoute
-  '/reflect': typeof AppReflectRoute
+  '/plan': typeof AppPlanRouteWithChildren
+  '/reflect': typeof AppReflectRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/oauth/callback': typeof OauthCallbackRoute
   '/subscription/success': typeof SubscriptionSuccessRoute
+  '/plan/northstar': typeof AppPlanNorthstarRoute
+  '/reflect/review': typeof AppReflectReviewRoute
   '/today/checkin': typeof AppTodayCheckinRoute
   '/today': typeof AppTodayIndexRoute
+  '/plan/framework/$type': typeof AppPlanFrameworkTypeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -115,13 +139,16 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/_app/chat': typeof AppChatRoute
-  '/_app/plan': typeof AppPlanRoute
-  '/_app/reflect': typeof AppReflectRoute
+  '/_app/plan': typeof AppPlanRouteWithChildren
+  '/_app/reflect': typeof AppReflectRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/oauth/callback': typeof OauthCallbackRoute
   '/subscription/success': typeof SubscriptionSuccessRoute
+  '/_app/plan/northstar': typeof AppPlanNorthstarRoute
+  '/_app/reflect/review': typeof AppReflectReviewRoute
   '/_app/today/checkin': typeof AppTodayCheckinRoute
   '/_app/today/': typeof AppTodayIndexRoute
+  '/_app/plan/framework/$type': typeof AppPlanFrameworkTypeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -135,8 +162,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/oauth/callback'
     | '/subscription/success'
+    | '/plan/northstar'
+    | '/reflect/review'
     | '/today/checkin'
     | '/today'
+    | '/plan/framework/$type'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -148,8 +178,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/oauth/callback'
     | '/subscription/success'
+    | '/plan/northstar'
+    | '/reflect/review'
     | '/today/checkin'
     | '/today'
+    | '/plan/framework/$type'
   id:
     | '__root__'
     | '/'
@@ -162,8 +195,11 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/oauth/callback'
     | '/subscription/success'
+    | '/_app/plan/northstar'
+    | '/_app/reflect/review'
     | '/_app/today/checkin'
     | '/_app/today/'
+    | '/_app/plan/framework/$type'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,13 +297,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTodayCheckinRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reflect/review': {
+      id: '/_app/reflect/review'
+      path: '/review'
+      fullPath: '/reflect/review'
+      preLoaderRoute: typeof AppReflectReviewRouteImport
+      parentRoute: typeof AppReflectRoute
+    }
+    '/_app/plan/northstar': {
+      id: '/_app/plan/northstar'
+      path: '/northstar'
+      fullPath: '/plan/northstar'
+      preLoaderRoute: typeof AppPlanNorthstarRouteImport
+      parentRoute: typeof AppPlanRoute
+    }
+    '/_app/plan/framework/$type': {
+      id: '/_app/plan/framework/$type'
+      path: '/framework/$type'
+      fullPath: '/plan/framework/$type'
+      preLoaderRoute: typeof AppPlanFrameworkTypeRouteImport
+      parentRoute: typeof AppPlanRoute
+    }
   }
 }
 
+interface AppPlanRouteChildren {
+  AppPlanNorthstarRoute: typeof AppPlanNorthstarRoute
+  AppPlanFrameworkTypeRoute: typeof AppPlanFrameworkTypeRoute
+}
+
+const AppPlanRouteChildren: AppPlanRouteChildren = {
+  AppPlanNorthstarRoute: AppPlanNorthstarRoute,
+  AppPlanFrameworkTypeRoute: AppPlanFrameworkTypeRoute,
+}
+
+const AppPlanRouteWithChildren =
+  AppPlanRoute._addFileChildren(AppPlanRouteChildren)
+
+interface AppReflectRouteChildren {
+  AppReflectReviewRoute: typeof AppReflectReviewRoute
+}
+
+const AppReflectRouteChildren: AppReflectRouteChildren = {
+  AppReflectReviewRoute: AppReflectReviewRoute,
+}
+
+const AppReflectRouteWithChildren = AppReflectRoute._addFileChildren(
+  AppReflectRouteChildren,
+)
+
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
-  AppPlanRoute: typeof AppPlanRoute
-  AppReflectRoute: typeof AppReflectRoute
+  AppPlanRoute: typeof AppPlanRouteWithChildren
+  AppReflectRoute: typeof AppReflectRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppTodayCheckinRoute: typeof AppTodayCheckinRoute
   AppTodayIndexRoute: typeof AppTodayIndexRoute
@@ -275,8 +357,8 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
-  AppPlanRoute: AppPlanRoute,
-  AppReflectRoute: AppReflectRoute,
+  AppPlanRoute: AppPlanRouteWithChildren,
+  AppReflectRoute: AppReflectRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppTodayCheckinRoute: AppTodayCheckinRoute,
   AppTodayIndexRoute: AppTodayIndexRoute,

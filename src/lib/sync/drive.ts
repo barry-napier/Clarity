@@ -23,10 +23,40 @@ interface DriveCreateResponse {
 
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 const CLARITY_FOLDER_NAME = 'Clarity';
+const FOLDER_CACHE_KEY = 'clarity_drive_folders';
 
-// Cache folder IDs to avoid repeated lookups
+// Cache folder IDs (persisted to localStorage)
 let clarityFolderId: string | null = null;
 const subfolderIds: Record<string, string> = {};
+
+// Load cached folder IDs from localStorage
+function loadFolderCache(): void {
+  try {
+    const cached = localStorage.getItem(FOLDER_CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      clarityFolderId = data.clarityFolderId || null;
+      Object.assign(subfolderIds, data.subfolderIds || {});
+    }
+  } catch {
+    // Ignore parse errors
+  }
+}
+
+// Save folder IDs to localStorage
+function saveFolderCache(): void {
+  try {
+    localStorage.setItem(FOLDER_CACHE_KEY, JSON.stringify({
+      clarityFolderId,
+      subfolderIds,
+    }));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// Initialize cache on module load
+loadFolderCache();
 
 /**
  * Find or create the main Clarity folder in user's Drive
@@ -54,6 +84,7 @@ export async function getOrCreateClarityFolder(
 
   if (searchData.files && searchData.files.length > 0) {
     clarityFolderId = searchData.files[0].id;
+    saveFolderCache();
     return clarityFolderId;
   }
 
@@ -79,6 +110,7 @@ export async function getOrCreateClarityFolder(
 
   const createData = (await createResponse.json()) as DriveCreateResponse;
   clarityFolderId = createData.id;
+  saveFolderCache();
   return clarityFolderId;
 }
 
@@ -111,6 +143,7 @@ export async function getOrCreateSubfolder(
 
   if (searchData.files && searchData.files.length > 0) {
     subfolderIds[subfolderName] = searchData.files[0].id;
+    saveFolderCache();
     return subfolderIds[subfolderName];
   }
 
@@ -137,6 +170,7 @@ export async function getOrCreateSubfolder(
 
   const createData = (await createResponse.json()) as DriveCreateResponse;
   subfolderIds[subfolderName] = createData.id;
+  saveFolderCache();
   return subfolderIds[subfolderName];
 }
 
@@ -333,6 +367,11 @@ export async function deleteFromDrive(
 export function clearFolderCache(): void {
   clarityFolderId = null;
   Object.keys(subfolderIds).forEach((key) => delete subfolderIds[key]);
+  try {
+    localStorage.removeItem(FOLDER_CACHE_KEY);
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 // Legacy support for AppData (for migration)

@@ -29,6 +29,10 @@ const FOLDER_CACHE_KEY = 'clarity_drive_folders';
 let clarityFolderId: string | null = null;
 const subfolderIds: Record<string, string> = {};
 
+// In-flight folder creation promises (prevents concurrent creates)
+let clarityFolderPromise: Promise<string> | null = null;
+const subfolderPromises: Record<string, Promise<string>> = {};
+
 // Load cached folder IDs from localStorage
 function loadFolderCache(): void {
   try {
@@ -64,6 +68,22 @@ loadFolderCache();
 export async function getOrCreateClarityFolder(
   accessToken: string
 ): Promise<string> {
+  if (clarityFolderId) return clarityFolderId;
+
+  // If creation already in-flight, wait for it
+  if (clarityFolderPromise) return clarityFolderPromise;
+
+  // Start creation and store promise
+  clarityFolderPromise = createClarityFolderInternal(accessToken);
+  try {
+    return await clarityFolderPromise;
+  } finally {
+    clarityFolderPromise = null;
+  }
+}
+
+async function createClarityFolderInternal(accessToken: string): Promise<string> {
+  // Double-check cache after acquiring "lock"
   if (clarityFolderId) return clarityFolderId;
 
   // Search for existing folder
@@ -121,6 +141,27 @@ export async function getOrCreateSubfolder(
   accessToken: string,
   subfolderName: string
 ): Promise<string> {
+  if (subfolderIds[subfolderName]) return subfolderIds[subfolderName];
+
+  // If creation already in-flight for this subfolder, wait for it
+  const existing = subfolderPromises[subfolderName];
+  if (existing) return existing;
+
+  // Start creation and store promise
+  const promise = createSubfolderInternal(accessToken, subfolderName);
+  subfolderPromises[subfolderName] = promise;
+  try {
+    return await promise;
+  } finally {
+    delete subfolderPromises[subfolderName];
+  }
+}
+
+async function createSubfolderInternal(
+  accessToken: string,
+  subfolderName: string
+): Promise<string> {
+  // Double-check cache after acquiring "lock"
   if (subfolderIds[subfolderName]) return subfolderIds[subfolderName];
 
   const parentId = await getOrCreateClarityFolder(accessToken);

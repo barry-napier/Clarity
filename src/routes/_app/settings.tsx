@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Bell, Clock } from 'lucide-react';
+import { ArrowLeft, Bell, Clock, CreditCard, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import {
   saveReminderSettings,
   type ReminderSettings,
 } from '@/lib/notifications/reminder-settings';
+import { useSubscription } from '@/lib/stripe/use-subscription';
+import { openCustomerPortal } from '@/lib/stripe/checkout';
 
 export const Route = createFileRoute('/_app/settings')({
   component: SettingsPage,
@@ -25,7 +27,10 @@ function SettingsPage() {
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
   const notificationsAvailable = isNotificationsAvailable();
+
+  const subscription = useSubscription();
 
   // Load settings on mount
   useEffect(() => {
@@ -162,6 +167,90 @@ function SettingsPage() {
 
       {/* Settings content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Subscription section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Subscription
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {subscription.isLoading ? (
+              <div className="animate-pulse text-sm text-muted-foreground">
+                Loading subscription status...
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {subscription.status?.status === 'trialing' && 'Free Trial'}
+                      {subscription.status?.status === 'active' && 'Active Subscription'}
+                      {subscription.status?.status === 'past_due' && 'Payment Past Due'}
+                      {subscription.status?.status === 'canceled' && 'Canceled'}
+                      {subscription.status?.status === 'paused' && 'Paused'}
+                      {(subscription.status?.status === 'none' || !subscription.status) && 'No Subscription'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {subscription.status?.status === 'trialing' && subscription.trialDaysRemaining !== null && (
+                        <>
+                          {subscription.trialDaysRemaining === 0
+                            ? 'Trial ends today'
+                            : `${subscription.trialDaysRemaining} day${subscription.trialDaysRemaining === 1 ? '' : 's'} remaining`}
+                        </>
+                      )}
+                      {subscription.status?.status === 'active' && subscription.status.planType && (
+                        <>
+                          {subscription.status.planType === 'monthly' ? 'Monthly' : 'Annual'} plan
+                          {subscription.status.cancelAtPeriodEnd && ' (cancels at period end)'}
+                        </>
+                      )}
+                      {subscription.status?.status === 'past_due' && 'Please update your payment method'}
+                      {subscription.status?.status === 'paused' && 'Resume to continue using Clarity'}
+                    </p>
+                  </div>
+                  {subscription.status?.stripeSubscriptionId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        setIsPortalLoading(true);
+                        await openCustomerPortal();
+                        setIsPortalLoading(false);
+                      }}
+                      disabled={isPortalLoading}
+                    >
+                      {isPortalLoading ? 'Loading...' : (
+                        <>
+                          Manage
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                {subscription.status?.status === 'trialing' && (
+                  <Link to="/pricing">
+                    <Button variant="default" className="w-full">
+                      Subscribe Now
+                    </Button>
+                  </Link>
+                )}
+
+                {(subscription.status?.status === 'none' || !subscription.status) && (
+                  <Link to="/pricing">
+                    <Button variant="default" className="w-full">
+                      View Plans
+                    </Button>
+                  </Link>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Notifications section */}
         <Card>
           <CardHeader>

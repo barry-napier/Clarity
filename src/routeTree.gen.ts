@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SubscriptionSuccessRouteImport } from './routes/subscription/success'
 import { Route as OauthCallbackRouteImport } from './routes/oauth/callback'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppReflectRouteImport } from './routes/_app/reflect'
@@ -20,6 +22,11 @@ import { Route as AppChatRouteImport } from './routes/_app/chat'
 import { Route as AppTodayIndexRouteImport } from './routes/_app/today/index'
 import { Route as AppTodayCheckinRouteImport } from './routes/_app/today/checkin'
 
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -32,6 +39,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubscriptionSuccessRoute = SubscriptionSuccessRouteImport.update({
+  id: '/subscription/success',
+  path: '/subscription/success',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OauthCallbackRoute = OauthCallbackRouteImport.update({
@@ -73,22 +85,26 @@ const AppTodayCheckinRoute = AppTodayCheckinRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/pricing': typeof PricingRoute
   '/chat': typeof AppChatRoute
   '/plan': typeof AppPlanRoute
   '/reflect': typeof AppReflectRoute
   '/settings': typeof AppSettingsRoute
   '/oauth/callback': typeof OauthCallbackRoute
+  '/subscription/success': typeof SubscriptionSuccessRoute
   '/today/checkin': typeof AppTodayCheckinRoute
   '/today': typeof AppTodayIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/pricing': typeof PricingRoute
   '/chat': typeof AppChatRoute
   '/plan': typeof AppPlanRoute
   '/reflect': typeof AppReflectRoute
   '/settings': typeof AppSettingsRoute
   '/oauth/callback': typeof OauthCallbackRoute
+  '/subscription/success': typeof SubscriptionSuccessRoute
   '/today/checkin': typeof AppTodayCheckinRoute
   '/today': typeof AppTodayIndexRoute
 }
@@ -97,11 +113,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/pricing': typeof PricingRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/plan': typeof AppPlanRoute
   '/_app/reflect': typeof AppReflectRoute
   '/_app/settings': typeof AppSettingsRoute
   '/oauth/callback': typeof OauthCallbackRoute
+  '/subscription/success': typeof SubscriptionSuccessRoute
   '/_app/today/checkin': typeof AppTodayCheckinRoute
   '/_app/today/': typeof AppTodayIndexRoute
 }
@@ -110,22 +128,26 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/pricing'
     | '/chat'
     | '/plan'
     | '/reflect'
     | '/settings'
     | '/oauth/callback'
+    | '/subscription/success'
     | '/today/checkin'
     | '/today'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/pricing'
     | '/chat'
     | '/plan'
     | '/reflect'
     | '/settings'
     | '/oauth/callback'
+    | '/subscription/success'
     | '/today/checkin'
     | '/today'
   id:
@@ -133,11 +155,13 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/pricing'
     | '/_app/chat'
     | '/_app/plan'
     | '/_app/reflect'
     | '/_app/settings'
     | '/oauth/callback'
+    | '/subscription/success'
     | '/_app/today/checkin'
     | '/_app/today/'
   fileRoutesById: FileRoutesById
@@ -146,11 +170,20 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PricingRoute: typeof PricingRoute
   OauthCallbackRoute: typeof OauthCallbackRoute
+  SubscriptionSuccessRoute: typeof SubscriptionSuccessRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -170,6 +203,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subscription/success': {
+      id: '/subscription/success'
+      path: '/subscription/success'
+      fullPath: '/subscription/success'
+      preLoaderRoute: typeof SubscriptionSuccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/oauth/callback': {
@@ -248,7 +288,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  PricingRoute: PricingRoute,
   OauthCallbackRoute: OauthCallbackRoute,
+  SubscriptionSuccessRoute: SubscriptionSuccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

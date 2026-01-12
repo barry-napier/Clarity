@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { isAuthenticated } from '@/lib/token-service';
 import { AppShell } from '@/components/app-shell';
+import { SubscriptionGate } from '@/components/subscription-gate';
 import {
   registerNotificationClickListener,
   MORNING_NOTIFICATION_ID,
@@ -59,8 +60,10 @@ function AppLayout() {
   }
 
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <SubscriptionGate>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </SubscriptionGate>
   );
 }

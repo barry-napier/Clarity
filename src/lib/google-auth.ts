@@ -20,7 +20,12 @@ function getClientId(): string {
   return GOOGLE_WEB_CLIENT_ID;
 }
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.appdata'];
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.appdata',
+  'openid',
+  'email',
+  'profile',
+];
 
 function getRedirectUri(): string {
   if (Capacitor.isNativePlatform() && GOOGLE_IOS_CLIENT_ID) {

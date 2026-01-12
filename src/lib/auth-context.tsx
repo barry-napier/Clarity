@@ -24,6 +24,14 @@ import {
 } from './oauth-storage';
 import { storeTokens, clearTokens, isAuthenticated } from './token-service';
 import {
+  fetchGoogleUserInfo,
+  storeUserInfo,
+  clearUserInfo,
+  getStoredUserInfo,
+  type GoogleUserInfo,
+} from './user-service';
+import { ensureSupabaseUser } from './stripe/subscription-service';
+import {
   initDeepLinkListener,
   parseOAuthCallback,
   type OAuthCallbackParams,
@@ -171,6 +179,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Clean up PKCE verifier
         await clearPKCEVerifier();
 
+        // Fetch and store user info
+        console.log('[AuthProvider] Fetching user info...');
+        const userInfo = await fetchGoogleUserInfo();
+        if (userInfo) {
+          console.log('[AuthProvider] User info received, storing...');
+          await storeUserInfo(userInfo);
+
+          // Create/ensure Supabase user for subscription tracking
+          console.log('[AuthProvider] Ensuring Supabase user...');
+          await ensureSupabaseUser(userInfo.id, userInfo.email);
+        } else {
+          console.warn('[AuthProvider] Could not fetch user info');
+        }
+
         console.log('[AuthProvider] Authentication successful!');
         setAuthenticated(true);
       } catch (err) {
@@ -222,6 +244,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await clearTokens();
       await clearOAuthState();
       await clearPKCEVerifier();
+      await clearUserInfo();
       setAuthenticated(false);
     } catch (err) {
       console.error('Sign out failed:', err);

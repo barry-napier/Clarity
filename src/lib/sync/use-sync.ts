@@ -1,9 +1,13 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { processSyncQueue } from './processor';
 import { hydrateFromDrive } from './hydrate';
 import { isAuthenticated } from '../token-service';
 
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
+
+// Global lock to prevent concurrent syncs (shared across all hook instances)
+let globalSyncLock = false;
+let globalHasHydrated = false;
 
 export function useSync() {
   const [status, setStatus] = useState<SyncStatus>('idle');
@@ -12,12 +16,10 @@ export function useSync() {
     failed: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const hasHydrated = useRef(false);
-  const isSyncing = useRef(false);
 
   const sync = useCallback(async () => {
-    // Don't sync if already syncing (use ref to avoid stale closure)
-    if (isSyncing.current) return;
+    // Don't sync if already syncing (global lock for all instances)
+    if (globalSyncLock) return;
 
     // Check if we're online
     if (!navigator.onLine) {
@@ -32,14 +34,14 @@ export function useSync() {
       return;
     }
 
-    isSyncing.current = true;
+    globalSyncLock = true;
     setStatus('syncing');
     setError(null);
 
     try {
       // Hydrate from Drive on first sync (new device or fresh install)
-      if (!hasHydrated.current) {
-        hasHydrated.current = true;
+      if (!globalHasHydrated) {
+        globalHasHydrated = true;
         await hydrateFromDrive();
       }
 
@@ -57,7 +59,7 @@ export function useSync() {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Sync failed');
     } finally {
-      isSyncing.current = false;
+      globalSyncLock = false;
     }
   }, []);
 

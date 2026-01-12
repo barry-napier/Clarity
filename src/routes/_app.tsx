@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { isAuthenticated } from '@/lib/token-service';
 import { AppShell } from '@/components/app-shell';
 import { SubscriptionGate } from '@/components/subscription-gate';
+import { useSync } from '@/lib/sync/use-sync';
 import {
   registerNotificationClickListener,
   MORNING_NOTIFICATION_ID,
@@ -17,6 +18,9 @@ function AppLayout() {
   const navigate = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
+
+  // Start sync on all protected pages
+  useSync();
 
   useEffect(() => {
     async function checkAuth() {

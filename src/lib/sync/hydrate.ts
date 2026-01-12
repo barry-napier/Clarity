@@ -13,6 +13,9 @@ async function isFirstLaunch(): Promise<boolean> {
 /**
  * Hydrate local database from Google Drive
  * Called on app launch to sync data from Drive to local Dexie
+ *
+ * Note: This handles legacy JSON files from AppData folder.
+ * New sync uses Markdown files in visible Clarity folder.
  */
 export async function hydrateFromDrive(): Promise<{
   hydrated: number;
@@ -29,44 +32,52 @@ export async function hydrateFromDrive(): Promise<{
     return { hydrated: 0, skipped: 0 };
   }
 
-  const files = await listAppDataFiles(accessToken);
-  const captureFiles = files.filter((f) => f.name.startsWith('capture-'));
+  // Try to hydrate from legacy AppData (JSON files)
+  try {
+    const files = await listAppDataFiles(accessToken);
+    const captureFiles = files.filter((f) => f.name.startsWith('capture-'));
 
-  let hydrated = 0;
-  let skipped = 0;
+    let hydrated = 0;
+    let skipped = 0;
 
-  for (const file of captureFiles) {
-    try {
-      const capture = await downloadFromDrive<Capture>(accessToken, file.id);
+    for (const file of captureFiles) {
+      try {
+        const content = await downloadFromDrive(accessToken, file.id);
+        const capture = JSON.parse(content) as Capture;
 
-      // Check if we already have this capture locally
-      const existing = await db.captures.get(capture.id);
-      if (existing) {
-        // Keep the more recently updated version
-        if (capture.updatedAt > existing.updatedAt) {
+        // Check if we already have this capture locally
+        const existing = await db.captures.get(capture.id);
+        if (existing) {
+          // Keep the more recently updated version
+          if (capture.updatedAt > existing.updatedAt) {
+            await db.captures.put({
+              ...capture,
+              driveFileId: file.id,
+              syncStatus: 'synced',
+            });
+            hydrated++;
+          } else {
+            skipped++;
+          }
+        } else {
+          // New capture from Drive
           await db.captures.put({
             ...capture,
             driveFileId: file.id,
             syncStatus: 'synced',
           });
           hydrated++;
-        } else {
-          skipped++;
         }
-      } else {
-        // New capture from Drive
-        await db.captures.put({
-          ...capture,
-          driveFileId: file.id,
-          syncStatus: 'synced',
-        });
-        hydrated++;
+      } catch (error) {
+        console.error(`Failed to hydrate capture from ${file.name}:`, error);
+        skipped++;
       }
-    } catch (error) {
-      console.error(`Failed to hydrate capture from ${file.name}:`, error);
-      skipped++;
     }
-  }
 
-  return { hydrated, skipped };
+    return { hydrated, skipped };
+  } catch (error) {
+    // AppData might not have any files, that's okay
+    console.log('[Hydrate] No legacy AppData files found:', error);
+    return { hydrated: 0, skipped: 0 };
+  }
 }
